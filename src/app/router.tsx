@@ -5,7 +5,11 @@ import { DashboardLayout, type DashboardNavItem } from "@/components/layout/Dash
 import { ParentLayout } from "@/components/layout/ParentLayout"
 import { PublicLayout } from "@/components/layout/PublicLayout"
 import { RequireRole } from "@/components/layout/RequireRole"
+import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage"
+import { RegisterOrganisationPage } from "@/pages/auth/RegisterOrganisationPage"
+import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage"
 import { SignInPage } from "@/pages/auth/SignInPage"
+import { SignUpPage } from "@/pages/auth/SignUpPage"
 import { ComingSoonPage } from "@/pages/ComingSoonPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { HomePage } from "@/pages/public/HomePage"
@@ -57,10 +61,15 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "shop", element: <ShopPage /> },
+      { path: "shop/:productId", lazy: page(() => import("@/pages/public/ProductPage"), "ProductPage") },
       { path: "schools/:slug", element: <SchoolPage /> },
     ],
   },
   { path: "sign-in", element: <SignInPage /> },
+  { path: "sign-up", element: <SignUpPage /> },
+  { path: "forgot-password", element: <ForgotPasswordPage /> },
+  { path: "reset-password", element: <ResetPasswordPage /> },
+  { path: "register", element: <RegisterOrganisationPage /> },
   {
     path: "parent",
     element: <RequireRole roles={["parent"]} />,

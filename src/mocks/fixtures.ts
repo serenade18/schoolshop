@@ -4,6 +4,7 @@ import type {
   Child,
   Order,
   Product,
+  ProductDetail,
   School,
   SchoolBatch,
   SchoolOverview,
@@ -168,6 +169,33 @@ export const products: Product[] = [
   { id: "prd-books", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", subject: "Exercise books", gradeLabel: "All grades", gradeBand: "all", priceCents: k(550), schoolListCount: 41 },
 ]
 
+type ProductExtra = Pick<ProductDetail, "description" | "isbn" | "pages" | "format">
+
+const productExtras: Record<string, ProductExtra> = {
+  "prd-g4-math": { description: "CBC-aligned learner's book with a worked example and practice activity for every lesson: numbers to 100,000, fractions, measurement, geometry and data handling.", isbn: "978-9966-36-412-8", pages: 184, format: "Paperback, A4" },
+  "prd-g4-eng": { description: "Reading passages, grammar and writing activities for the Grade 4 English curriculum, with listening and speaking tasks for class work.", isbn: "978-9966-44-218-3", pages: 168, format: "Paperback, A4" },
+  "prd-g4-kis": { description: "Kitabu cha mwanafunzi kinachofuata mtaala wa CBC: kusoma, sarufi, kuandika na mazoezi ya kusikiliza na kuzungumza.", isbn: "978-0-19-573904-1", pages: 160, format: "Paperback, A4" },
+  "prd-g7-sci": { description: "Junior School Integrated Science covering scientific investigation, mixtures, living things, the human body and force and energy, with practical activities.", isbn: "978-9966-36-655-9", pages: 248, format: "Paperback, A4" },
+  "prd-g7-math": { description: "Grade 7 Mathematics for Junior School: integers, algebraic expressions, linear equations, geometry and probability, with end-of-strand assessments.", isbn: "978-9966-36-640-5", pages: 236, format: "Paperback, A4" },
+  "prd-g1-eng": { description: "Colourful early-reading activities: phonics, picture reading, letter formation and short stories for Grade 1 learners.", isbn: "978-9966-44-102-5", pages: 112, format: "Paperback, A4" },
+  "prd-pp2-lang": { description: "Pre-primary language activities with tracing, sound recognition, songs and picture talk, designed for PP2 classrooms.", isbn: "978-9966-63-311-7", pages: 96, format: "Paperback, A4" },
+  "prd-books": { description: "Pack of ten A4 exercise books, 96 pages each, ruled with margin. The standard exercise book on most school lists.", isbn: null, pages: 96, format: "Pack of 10" },
+}
+
+export function productDetail(product: Product): ProductDetail {
+  const extra = productExtras[product.id] ?? { description: "", isbn: null, pages: null, format: "Paperback" }
+  const related = products
+    .filter((p) => p.id !== product.id && (p.gradeLabel === product.gradeLabel || p.subject === product.subject || p.gradeBand === "all"))
+    .slice(0, 4)
+  return {
+    ...product,
+    ...extra,
+    kicdApproved: product.gradeBand !== "all",
+    onSchoolLists: schools.slice(0, 3).map(({ slug, name, town }) => ({ slug, name, town })),
+    related,
+  }
+}
+
 export const schoolOverview: SchoolOverview = {
   schoolName: "Greenhill Academy",
   termName: "Term 1, 2027",
@@ -221,16 +249,19 @@ export const adminOverview: AdminOverview = {
   ],
 }
 
-const user = (id: string, name: string, phone: string, roles: User["roles"], memberships: User["memberships"] = []): User => ({
-  id, name, phone, email: null, roles, memberships,
+const user = (id: string, name: string, phone: string, roles: User["roles"], memberships: User["memberships"] = [], email: string | null = null): User => ({
+  id, name, phone, email, roles, memberships,
 })
 
-/** Demo accounts, keyed by phone (2547XXXXXXXX). The one-time code is always 123456 in mock mode. */
+/**
+ * Demo accounts, keyed by phone (2547XXXXXXXX). In mock mode every one-time
+ * code is 123456 and every demo password is "schoolshop1".
+ */
 export const demoUsers: Record<string, User> = {
   "254712345678": user("usr-parent", "Achieng Otieno", "254712345678", ["parent"]),
   "254722000111": user("usr-school", "Grace Wambui", "254722000111", ["school_admin"], [
     { orgId: "sch-greenhill", orgName: "Greenhill Academy", orgType: "school", role: "school_admin" },
-  ]),
+  ], "grace@greenhill.ac.ke"),
   "254700000444": user("usr-pub", "Peter Kamau", "254700000444", ["publisher"], [
     { orgId: "pub-longhorn", orgName: "Longhorn Publishers", orgType: "publisher", role: "publisher" },
   ]),

@@ -36,3 +36,10 @@ export function maskPhone(e164: string) {
   const local = e164.replace(/^254/, "0")
   return `${local.slice(0, 4)} ••• ${local.slice(-3)}`
 }
+
+/** Sign-in identifier: an email (lower-cased) or a Kenyan phone number as 2547XXXXXXXX. */
+export function normaliseIdentifier(input: string): string | null {
+  const v = input.trim()
+  if (v.includes("@")) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v.toLowerCase() : null
+  return normaliseKenyanPhone(v)
+}

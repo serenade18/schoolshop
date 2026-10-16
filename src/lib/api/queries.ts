@@ -40,6 +40,9 @@ export const useSchoolBooklists = (slug: string) =>
 export const useProducts = (band?: string) =>
   useQuery({ queryKey: queryKeys.products(band), queryFn: () => endpoints.listProducts(band) })
 
+export const useProduct = (id: string) =>
+  useQuery({ queryKey: queryKeys.product(id), queryFn: () => endpoints.getProduct(id) })
+
 export const useChildren = () =>
   useQuery({ queryKey: queryKeys.children, queryFn: endpoints.listChildren })
 

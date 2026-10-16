@@ -201,7 +201,7 @@ Until the backend exists, `VITE_USE_MOCKS=true` swaps Axios's adapter for an in-
 | API | **Django + Django REST Framework** | Batteries-included admin, ORM, auth, permissions. |
 | JSON style | `djangorestframework-camel-case` | The API speaks camelCase, so the TypeScript types map 1:1. |
 | Database | **PostgreSQL** | Relational data (orders, ledger), transactions, jsonb for provider callbacks. |
-| Auth | Phone + SMS OTP for parents; email + password for staff; **JWT** via `djangorestframework-simplejwt` | Parents in Kenya identify by phone number, which is also their M-Pesa number. |
+| Auth | Phone (or email) + password, with an SMS one-time code as the alternative sign-in and for verifying the phone at sign-up and resetting a password; **JWT** via `djangorestframework-simplejwt` | Parents in Kenya identify by phone number, which is also their M-Pesa number. Schools and publishers apply with a work email and go through admin verification. |
 | Background jobs | **Celery + Redis** (`celery beat` for schedules) | Deadline batching, SMS, payment reconciliation, payouts. |
 | M-Pesa | **Safaricom Daraja**: STK Push (C2B) to collect, Transaction Status for checks, B2C for refunds, B2B for payouts | Most parents pay this way. |
 | Cards | **Paystack** or **Flutterwave** (both support KES) | Backup payment method; choose based on fees and settlement terms. |
@@ -222,7 +222,7 @@ frontend/                     React + Vite SPA
   src/pages/                  public/, auth/, parent/, school/, publisher/, admin/
   src/mocks/                  fixture data + mock Axios adapter
 backend/                      Django project (next step)
-  accounts/                   users, memberships, phone OTP
+  accounts/                   users, memberships, passwords, phone OTP, organisation applications
   schools/                    schools, grades, classes, students, guardians
   catalog/                    publishers, products
   booklists/                  terms, booklists, items (price snapshots)
@@ -237,9 +237,12 @@ docs/
 
 | Method & path | Used by |
 |---|---|
-| `POST /api/auth/otp/request/` · `POST /api/auth/otp/verify/` · `GET /api/me/` | sign-in |
+| `POST /api/auth/login/` (phone or email + password) · `POST /api/auth/otp/request/` · `POST /api/auth/otp/verify/` · `GET /api/me/` | sign-in |
+| `POST /api/auth/register/` · `POST /api/auth/register/verify/` · `POST /api/auth/register/resend/` | parent sign-up + phone verification |
+| `POST /api/auth/password/forgot/` · `POST /api/auth/password/reset/` | forgot / reset password (6-digit code by SMS, or email for staff) |
+| `POST /api/organisations/applications/` | school / publisher sign-up → admin verification queue |
 | `GET /api/schools/?search=` · `GET /api/schools/{slug}/` · `GET /api/schools/{slug}/booklists/` | public site |
-| `GET /api/products/?gradeBand=` · `GET /api/products/{id}/` | shop |
+| `GET /api/products/?gradeBand=` · `GET /api/products/{id}/` (details, school lists, related items) | shop, product page |
 | `GET /api/children/` · `GET /api/booklists/{id}/` | parent |
 | `POST /api/orders/` · `GET /api/orders/` · `GET /api/orders/{id}/` | parent checkout & tracking |
 | `POST /api/orders/{id}/payments/` · `GET /api/payments/{id}/` | M-Pesa STK push + status polling |

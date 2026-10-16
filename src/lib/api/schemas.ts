@@ -40,6 +40,22 @@ export const authTokensSchema = z.object({
 })
 export type AuthTokens = z.infer<typeof authTokensSchema>
 
+/** Where a one-time code went, e.g. { channel: "sms", destination: "0712 ••• 678" }. */
+export const codeSentSchema = z.object({
+  sent: z.literal(true),
+  channel: z.enum(["sms", "email"]),
+  destination: z.string(),
+})
+export type CodeSent = z.infer<typeof codeSentSchema>
+
+export const orgApplicationSchema = z.object({
+  id: z.string(),
+  orgType: z.enum(["school", "publisher"]),
+  orgName: z.string(),
+  status: z.enum(["pending_review", "approved", "rejected"]),
+})
+export type OrgApplication = z.infer<typeof orgApplicationSchema>
+
 export const schoolSchema = z.object({
   id: z.string(),
   slug: z.string(),
@@ -174,6 +190,18 @@ export const productSchema = z.object({
   schoolListCount: z.number().int().nonnegative(),
 })
 export type Product = z.infer<typeof productSchema>
+
+export const productDetailSchema = productSchema.extend({
+  description: z.string(),
+  isbn: z.string().nullable(),
+  pages: z.number().int().positive().nullable(),
+  format: z.string(),
+  kicdApproved: z.boolean(),
+  /** A few schools whose published lists include this item, for reassurance. */
+  onSchoolLists: z.array(z.object({ slug: z.string(), name: z.string(), town: z.string() })),
+  related: z.array(productSchema),
+})
+export type ProductDetail = z.infer<typeof productDetailSchema>
 
 export const schoolOverviewSchema = z.object({
   schoolName: z.string(),

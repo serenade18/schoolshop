@@ -73,8 +73,8 @@ export function HomePage() {
       </section>
 
       <section aria-labelledby="grades-h" className="mx-auto max-w-6xl px-5 pt-16 pb-6">
-        <h2 id="grades-h" className="mb-6 text-[32px] font-semibold">Shop by grade</h2>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
+        <h2 id="grades-h" className="mb-6 text-[clamp(26px,4vw,32px)] font-semibold">Shop by grade</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {grades.map((g) => (
             <Link
               key={g.band}
@@ -90,19 +90,19 @@ export function HomePage() {
 
       <section aria-labelledby="popular-h" className="mx-auto max-w-6xl px-5 pt-10 pb-16">
         <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="popular-h" className="text-[32px] font-semibold">Popular this term</h2>
+          <h2 id="popular-h" className="text-[clamp(26px,4vw,32px)] font-semibold">Popular this term</h2>
           <Link to="/shop" className="py-2 text-[15px] font-semibold text-accent-text hover:underline">
             See the whole shop
           </Link>
         </div>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-5">
-          {products.data?.results.slice(0, 4).map((p) => <ProductCard key={p.id} product={p} />)}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-5">
+          {products.data?.results.slice(0, 4).map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
         </div>
       </section>
 
       <section aria-labelledby="how-h" className="bg-ink text-white">
         <div className="mx-auto max-w-6xl px-5 py-16">
-          <h2 id="how-h" className="mb-8 text-[32px] font-semibold">How it works</h2>
+          <h2 id="how-h" className="mb-8 text-[clamp(26px,4vw,32px)] font-semibold">How it works</h2>
           <ol className="grid gap-7 md:grid-cols-3">
             {steps.map((s, i) => (
               <li key={s.title} className="flex flex-col gap-2.5">

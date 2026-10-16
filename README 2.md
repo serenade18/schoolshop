@@ -18,12 +18,12 @@ The backend doesn't exist yet, so `.env.development` sets `VITE_USE_MOCKS=true`:
 
 ### Demo accounts (mock mode)
 
-The one-time code is always `123456`.
+Every demo password is `schoolshop1` and every one-time code (sign-in, sign-up, password reset) is `123456`. You can also create a new parent account at `/sign-up`.
 
-| Role | Phone |
+| Role | Sign in with |
 |---|---|
 | Parent | 0712 345 678 |
-| School admin | 0722 000 111 |
+| School admin | 0722 000 111 or grace@greenhill.ac.ke |
 | Publisher | 0700 000 444 |
 | Platform admin | 0799 000 999 |
 
