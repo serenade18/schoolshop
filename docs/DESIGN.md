@@ -1,7 +1,7 @@
 # SchoolShop — Product & System Design
 
 Status: **Draft v0.1** — for review before we start building.
-UI mockups: the SchoolShop Screens canvas (claude.ai artifact) and the Figma file "SchoolShop — App Design" (Parents row so far).
+UI mockups: the SchoolShop Screens canvas (claude.ai artifact) and the Figma file "SchoolShop — App Design" (all 23 screens as editable layers).
 
 ---
 
