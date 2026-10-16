@@ -23,9 +23,9 @@ export function ShopPage() {
   const setExtraQty = useCartStore((s) => s.setExtraQty)
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 pt-8 pb-16">
+    <div className="mx-auto flex max-w-6xl flex-col gap-5 px-5 pt-6 pb-16 md:gap-6 md:pt-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[40px] font-semibold tracking-tight">Shop by grade</h1>
+        <h1 className="text-[clamp(30px,5vw,40px)] leading-tight font-semibold tracking-tight">Shop by grade</h1>
         <p className="text-ink/85">
           Buying for a school list?{" "}
           <Link to="/schools/greenhill-academy" className="font-semibold text-accent-text hover:underline">
@@ -34,35 +34,38 @@ export function ShopPage() {
           to get the exact items.
         </p>
       </div>
-      <div className="flex flex-wrap items-start gap-8">
-        <aside aria-label="Filters" className="flex max-w-full grow basis-56 flex-col gap-6 md:max-w-60">
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
+        <aside aria-label="Filters" className="flex flex-col gap-6 md:sticky md:top-6 md:w-56 md:shrink-0">
           <div role="group" aria-label="Grade" className="flex flex-col gap-1.5">
-            <span className="mb-1 text-[13px] font-bold tracking-[0.06em] text-muted-foreground uppercase">Grade</span>
-            {bands.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                aria-pressed={b.id === band}
-                onClick={() => setParams(b.id === "all" ? {} : { grade: b.id })}
-                className={cn(
-                  "h-11 rounded-lg px-3.5 text-left text-[15px]",
-                  b.id === band ? "bg-ink font-semibold text-white" : "border bg-surface font-medium hover:bg-paper"
-                )}
-              >
-                {b.name}
-              </button>
-            ))}
+            <span className="mb-1 text-[13px] font-bold tracking-[0.06em] text-muted-foreground uppercase max-md:sr-only">Grade</span>
+            {/* A scrolling chip row on phones, a stacked list beside the grid from md. */}
+            <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] md:mx-0 md:flex-col md:gap-1.5 md:overflow-visible md:px-0 md:pb-0">
+              {bands.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  aria-pressed={b.id === band}
+                  onClick={() => setParams(b.id === "all" ? {} : { grade: b.id })}
+                  className={cn(
+                    "h-10 shrink-0 rounded-full px-4 text-left text-[15px] whitespace-nowrap md:h-11 md:rounded-lg md:px-3.5",
+                    b.id === band ? "bg-ink font-semibold text-white" : "border bg-surface font-medium hover:bg-paper"
+                  )}
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="rounded-xl bg-paper p-4 text-sm leading-relaxed text-ink/85">
+          <p className="rounded-xl bg-paper p-4 text-sm leading-relaxed text-ink/85 max-md:hidden">
             Shop items go in your child's pack and arrive with the school's next delivery.
           </p>
         </aside>
-        <section aria-label="Products" className="flex min-w-0 grow-[999] basis-[560px] flex-col gap-4">
+        <section aria-label="Products" className="flex min-w-0 grow flex-col gap-4">
           <QueryBoundary query={products}>
             {(data) => (
               <>
                 <span className="text-sm text-muted-foreground">{data.count} products</span>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-6">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4">
                   {data.results.map((p, i) => {
                     const added = !!extras[p.id]
                     return (
