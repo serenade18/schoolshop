@@ -7,3 +7,8 @@ E-commerce for school materials in Kenya, with three sides:
 - **Publishers** supply the materials, delivered in bulk to each school.
 
 Start with the design: [`docs/DESIGN.md`](docs/DESIGN.md). Brand files are in [`docs/brand/`](docs/brand/).
+
+## Code
+
+- [`frontend/`](frontend/): React + Vite app. See its README to run it with demo data.
+- `backend/`: Django REST Framework + PostgreSQL (next).

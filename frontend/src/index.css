@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/figtree";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * SchoolShop brand tokens (see docs/DESIGN.md §9). shadcn/ui reads the
+ * semantic variables below; brand colours are also exposed as utilities
+ * (bg-ink, text-muted-ink, from-sun to-flame, …).
+ */
+:root {
+  --radius: 0.75rem;
+
+  --ink: #141414;
+  --paper: #f7f5f2;
+  --surface: #ffffff;
+  --line: #e7e3dd;
+  --line-strong: #c9c3ba;
+  --muted-ink: #5a5650;
+  --sun: #faac1c;
+  --flame: #ed4e23;
+  --accent-text: #b23a0e;
+  --info-bg: #e3ecfb;
+  --info-fg: #163f8c;
+  --warn-bg: #fff1de;
+  --warn-fg: #8a2c0a;
+  --success-bg: #e4f3ea;
+  --success-fg: #145c38;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: #f1eee9;
+  --secondary-foreground: var(--ink);
+  --muted: #f1eee9;
+  --muted-foreground: var(--muted-ink);
+  --accent: var(--warn-bg);
+  --accent-foreground: var(--warn-fg);
+  --destructive: #b42318;
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--ink);
+}
+
+@theme inline {
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-muted-ink: var(--muted-ink);
+  --color-sun: var(--sun);
+  --color-flame: var(--flame);
+  --color-accent-text: var(--accent-text);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-fg: var(--warn-fg);
+  --color-success-bg: var(--success-bg);
+  --color-success-fg: var(--success-fg);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+}

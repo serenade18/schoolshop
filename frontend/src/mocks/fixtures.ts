@@ -1,0 +1,240 @@
+import type {
+  AdminOverview,
+  Booklist,
+  Child,
+  Order,
+  Product,
+  School,
+  SchoolBatch,
+  SchoolOverview,
+  User,
+} from "@/lib/api/schemas"
+
+/*
+ * Sample data for building the UI before the DRF backend exists. Names and
+ * figures are illustrative only. Money is in cents (KES 650 → 65000).
+ */
+
+const k = (shillings: number) => shillings * 100
+
+export const schools: School[] = [
+  { id: "sch-greenhill", slug: "greenhill-academy", name: "Greenhill Academy", town: "Nakuru", county: "Nakuru", verified: true },
+  { id: "sch-stmarys", slug: "st-marys-primary", name: "St. Mary's Primary", town: "Eldoret", county: "Uasin Gishu", verified: true },
+  { id: "sch-kilimani", slug: "kilimani-primary", name: "Kilimani Primary", town: "Nairobi", county: "Nairobi", verified: true },
+  { id: "sch-riverside", slug: "riverside-junior", name: "Riverside Junior School", town: "Kisumu", county: "Kisumu", verified: true },
+]
+
+const item = (
+  id: string,
+  title: string,
+  publisherName: string,
+  subject: string,
+  price: number,
+  required = true,
+  qtyPerStudent = 1
+) => ({ id, productId: `prd-${id}`, title, publisherName, subject, unitPriceCents: k(price), qtyPerStudent, required })
+
+const greenhillBase = {
+  schoolId: "sch-greenhill",
+  schoolName: "Greenhill Academy",
+  termName: "Term 1, 2027",
+  orderDeadline: "2027-01-10",
+  deliverBy: "2027-01-20",
+  status: "published" as const,
+}
+
+export const booklists: Booklist[] = [
+  {
+    ...greenhillBase,
+    id: "bl-g4",
+    gradeName: "Grade 4",
+    classNames: ["4 East", "4 West", "4 North"],
+    items: [
+      item("g4-math", "Mathematics Activities Grade 4", "Longhorn", "Mathematics", 650),
+      item("g4-eng", "English Activities Grade 4", "KLB", "English", 620),
+      item("g4-kis", "Kiswahili Shughuli Gredi 4", "Oxford", "Kiswahili", 640),
+      item("g4-sci", "Science & Technology Grade 4", "Moran", "Science", 690),
+      item("g4-sst", "Social Studies Grade 4", "Longhorn", "Social Studies", 600),
+      item("g4-books", "A4 exercise books, 96 pg (×10)", "Kasuku", "Stationery", 550),
+      item("g4-dict", "Primary Dictionary", "Oxford", "Reference", 1250, false),
+      item("g4-readers", "Class readers set (4 books)", "Storymoja", "Readers", 1400, false),
+    ],
+  },
+  {
+    ...greenhillBase,
+    id: "bl-g7",
+    gradeName: "Grade 7",
+    classNames: ["7 Blue", "7 Green", "7 Red"],
+    items: [
+      item("g7-math", "Mathematics Grade 7", "Longhorn", "Mathematics", 720),
+      item("g7-sci", "Integrated Science Grade 7", "Longhorn", "Science", 760),
+      item("g7-pts", "Pre-Technical Studies Grade 7", "Longhorn", "Pre-Technical", 700),
+      item("g7-eng", "English Grade 7", "KLB", "English", 690),
+      item("g7-geo", "Geometry set", "Kasuku", "Stationery", 300),
+    ],
+  },
+  {
+    ...greenhillBase,
+    id: "bl-g1",
+    gradeName: "Grade 1",
+    classNames: ["1 Sun", "1 Moon"],
+    items: [
+      item("g1-eng", "English Activities Grade 1", "KLB", "English", 540),
+      item("g1-math", "Mathematics Activities Grade 1", "Longhorn", "Mathematics", 540),
+      item("g1-kis", "Kiswahili Shughuli Gredi 1", "Oxford", "Kiswahili", 520),
+      item("g1-books", "A5 exercise books (×10)", "Kasuku", "Stationery", 400),
+      item("g1-dict", "Picture dictionary", "Oxford", "Reference", 900, false),
+    ],
+  },
+]
+
+export const summarise = (b: Booklist) => {
+  const { items, ...rest } = b
+  return {
+    ...rest,
+    itemCount: items.length,
+    requiredTotalCents: items.filter((i) => i.required).reduce((s, i) => s + i.unitPriceCents * i.qtyPerStudent, 0),
+  }
+}
+
+export const orders: Order[] = [
+  {
+    id: "ord-20418",
+    number: "SS-20418",
+    status: "in_fulfilment",
+    studentName: "Zawadi",
+    schoolName: "Greenhill Academy",
+    className: "7 Blue",
+    subtotalCents: k(5980),
+    totalCents: k(5980),
+    collectionCode: "4829",
+    paidAt: "2027-01-05T09:12:00+03:00",
+    mpesaReceipt: "QAB4X7K2LM",
+    expectedAtSchool: "2027-01-20",
+    collectedAt: null,
+    items: [
+      { id: "oi-1", title: "Mathematics Grade 7", publisherName: "Longhorn", qty: 1, unitPriceCents: k(720), status: "active" },
+      { id: "oi-2", title: "Integrated Science Grade 7", publisherName: "Longhorn", qty: 1, unitPriceCents: k(760), status: "active" },
+      { id: "oi-3", title: "Pre-Technical Studies Grade 7", publisherName: "Longhorn", qty: 1, unitPriceCents: k(700), status: "active" },
+      { id: "oi-4", title: "Social Studies Grade 7", publisherName: "Longhorn", qty: 1, unitPriceCents: k(690), status: "active" },
+      { id: "oi-5", title: "English Grade 7", publisherName: "KLB", qty: 1, unitPriceCents: k(690), status: "active" },
+      { id: "oi-6", title: "Kiswahili Grade 7", publisherName: "KLB", qty: 1, unitPriceCents: k(680), status: "active" },
+      { id: "oi-7", title: "CRE Grade 7", publisherName: "KLB", qty: 1, unitPriceCents: k(650), status: "active" },
+      { id: "oi-8", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", qty: 1, unitPriceCents: k(550), status: "active" },
+      { id: "oi-9", title: "Geometry set", publisherName: "Kasuku", qty: 1, unitPriceCents: k(300), status: "active" },
+      { id: "oi-10", title: "HB pencils, pack of 12", publisherName: "Kasuku", qty: 1, unitPriceCents: k(240), status: "active" },
+    ],
+    shipments: [
+      { publisherName: "Longhorn", summary: "4 textbooks", status: "dispatched" },
+      { publisherName: "KLB", summary: "3 textbooks", status: "dispatched" },
+      { publisherName: "Kasuku", summary: "Exercise books, geometry set, pencils", status: "ready_to_pack" },
+    ],
+  },
+]
+
+export const children: Child[] = [
+  {
+    id: "stu-amani",
+    name: "Amani",
+    admissionNo: "GA-2291",
+    schoolId: "sch-greenhill",
+    schoolName: "Greenhill Academy",
+    gradeName: "Grade 4",
+    className: "4 East",
+    openBooklist: summarise(booklists[0]),
+    latestOrder: null,
+  },
+  {
+    id: "stu-zawadi",
+    name: "Zawadi",
+    admissionNo: "GA-1870",
+    schoolId: "sch-greenhill",
+    schoolName: "Greenhill Academy",
+    gradeName: "Grade 7",
+    className: "7 Blue",
+    openBooklist: null,
+    latestOrder: { id: "ord-20418", number: "SS-20418", status: "in_fulfilment", expectedAtSchool: "2027-01-20" },
+  },
+]
+
+export const products: Product[] = [
+  { id: "prd-g4-math", title: "Mathematics Activities Grade 4", publisherName: "Longhorn", subject: "Mathematics", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(650), schoolListCount: 38 },
+  { id: "prd-g4-eng", title: "English Activities Grade 4", publisherName: "KLB", subject: "English", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(620), schoolListCount: 31 },
+  { id: "prd-g4-kis", title: "Kiswahili Shughuli Gredi 4", publisherName: "Oxford", subject: "Kiswahili", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(640), schoolListCount: 29 },
+  { id: "prd-g7-sci", title: "Integrated Science Grade 7", publisherName: "Longhorn", subject: "Integrated Science", gradeLabel: "Grade 7", gradeBand: "7-9", priceCents: k(760), schoolListCount: 27 },
+  { id: "prd-g7-math", title: "Mathematics Grade 7", publisherName: "Longhorn", subject: "Mathematics", gradeLabel: "Grade 7", gradeBand: "7-9", priceCents: k(720), schoolListCount: 44 },
+  { id: "prd-g1-eng", title: "English Activities Grade 1", publisherName: "KLB", subject: "English", gradeLabel: "Grade 1", gradeBand: "1-3", priceCents: k(540), schoolListCount: 22 },
+  { id: "prd-pp2-lang", title: "Language Activities PP2", publisherName: "Moran", subject: "Language Activities", gradeLabel: "PP2", gradeBand: "pp", priceCents: k(480), schoolListCount: 15 },
+  { id: "prd-books", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", subject: "Exercise books", gradeLabel: "All grades", gradeBand: "all", priceCents: k(550), schoolListCount: 41 },
+]
+
+export const schoolOverview: SchoolOverview = {
+  schoolName: "Greenhill Academy",
+  termName: "Term 1, 2027",
+  studentsOrdered: 312,
+  studentsTotal: 540,
+  orderDeadline: "2027-01-10",
+  deliveriesReceived: 2,
+  deliveriesExpected: 5,
+  packsCollected: 0,
+  booklists: [
+    { ...summarise(booklists[2]), ordered: 58, students: 90 },
+    { ...summarise(booklists[0]), ordered: 63, students: 120 },
+    { ...summarise(booklists[1]), ordered: 150, students: 270 },
+  ],
+  deliveries: [
+    { id: "dl-1", publisherName: "Longhorn", packs: 312, status: "received", date: "2027-01-09" },
+    { id: "dl-2", publisherName: "Moran", packs: 120, status: "received", date: "2027-01-09" },
+    { id: "dl-3", publisherName: "KLB", packs: 270, status: "dispatched", date: "2027-01-14" },
+    { id: "dl-4", publisherName: "Oxford", packs: 183, status: "dispatched", date: "2027-01-15" },
+    { id: "dl-5", publisherName: "Kasuku", packs: 312, status: "ready_to_pack", date: null },
+  ],
+}
+
+export const publisherBatches: SchoolBatch[] = [
+  { id: "bt-1", schoolName: "Greenhill Academy", town: "Nakuru", packs: 312, valueCents: k(187200), dueAtSchool: "2027-01-20", status: "ready_to_pack", collectingUntil: null,
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 63 }, { title: "Social Studies Grade 4", qty: 63 }, { title: "Mathematics Grade 7", qty: 150 }, { title: "Integrated Science Grade 7", qty: 150 }] },
+  { id: "bt-2", schoolName: "St. Mary's Primary", town: "Eldoret", packs: 204, valueCents: k(118300), dueAtSchool: "2027-01-18", status: "ready_to_pack", collectingUntil: null,
+    lines: [{ title: "Mathematics Activities Grade 1", qty: 88 }, { title: "English Activities Grade 1", qty: 88 }, { title: "Social Studies Grade 4", qty: 116 }] },
+  { id: "bt-3", schoolName: "Riverside Junior School", town: "Kisumu", packs: 178, valueCents: k(107100), dueAtSchool: "2027-01-22", status: "ready_to_pack", collectingUntil: null,
+    lines: [{ title: "Mathematics Grade 7", qty: 178 }, { title: "Pre-Technical Studies Grade 7", qty: 178 }] },
+  { id: "bt-4", schoolName: "Kilimani Primary", town: "Nairobi", packs: 96, valueCents: k(52800), dueAtSchool: "2027-01-24", status: "collecting", collectingUntil: "2027-01-12",
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 96 }] },
+  { id: "bt-5", schoolName: "Hillcrest Prep", town: "Nyeri", packs: 140, valueCents: k(84000), dueAtSchool: "2027-01-09", status: "dispatched", collectingUntil: null,
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 70 }, { title: "Social Studies Grade 4", qty: 70 }] },
+]
+
+export const adminOverview: AdminOverview = {
+  termName: "Term 1, 2027",
+  salesCents: k(4_820_000),
+  paidOrders: 1284,
+  heldCents: k(2_100_000),
+  mpesaSuccessRate: 0.961,
+  liveSchools: 41,
+  livePublishers: 9,
+  alerts: [
+    { id: "al-1", severity: "high", title: "3 schools waiting for verification", detail: "Oldest: 2 days ago", href: "/admin/organisations" },
+    { id: "al-2", severity: "high", title: "2 publisher applications", detail: "Documents uploaded", href: "/admin/organisations" },
+    { id: "al-3", severity: "medium", title: "4 M-Pesa payments not confirmed", detail: "No callback after 2 minutes, status check queued", href: "/admin/payments" },
+    { id: "al-4", severity: "medium", title: "1 short-delivery dispute", detail: "Hillcrest Prep · Moran · 6 packs", href: "/admin/payments" },
+    { id: "al-5", severity: "info", title: "6 refunds to approve", detail: "Out-of-stock lines, KES 7,980", href: "/admin/payments" },
+  ],
+}
+
+const user = (id: string, name: string, phone: string, roles: User["roles"], memberships: User["memberships"] = []): User => ({
+  id, name, phone, email: null, roles, memberships,
+})
+
+/** Demo accounts, keyed by phone (2547XXXXXXXX). The one-time code is always 123456 in mock mode. */
+export const demoUsers: Record<string, User> = {
+  "254712345678": user("usr-parent", "Achieng Otieno", "254712345678", ["parent"]),
+  "254722000111": user("usr-school", "Grace Wambui", "254722000111", ["school_admin"], [
+    { orgId: "sch-greenhill", orgName: "Greenhill Academy", orgType: "school", role: "school_admin" },
+  ]),
+  "254700000444": user("usr-pub", "Peter Kamau", "254700000444", ["publisher"], [
+    { orgId: "pub-longhorn", orgName: "Longhorn Publishers", orgType: "publisher", role: "publisher" },
+  ]),
+  "254799000999": user("usr-admin", "SchoolShop Ops", "254799000999", ["platform_admin"], [
+    { orgId: "platform", orgName: "SchoolShop", orgType: "platform", role: "platform_admin" },
+  ]),
+}

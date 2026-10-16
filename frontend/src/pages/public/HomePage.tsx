@@ -1,0 +1,220 @@
+import { useState } from "react"
+import { Link } from "react-router"
+import { Check, Search } from "lucide-react"
+
+import { GradientBar } from "@/components/common/GradientBar"
+import { ProductCard } from "@/components/common/ProductCard"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useProducts, useSchools } from "@/lib/api/queries"
+import { cn } from "@/lib/utils"
+
+const perks = [
+  { title: "M-Pesa or card", body: "Pay in one step from your phone" },
+  { title: "Free delivery to school", body: "Packed and labelled with your child's name" },
+  { title: "The exact school list", body: "Set by the school, priced by publishers" },
+]
+
+const grades = [
+  { band: "pp", name: "PP1–PP2", sub: "Pre-primary", className: "bg-[#fde7c8]" },
+  { band: "1-3", name: "Grade 1–3", sub: "Lower primary", className: "bg-sun" },
+  { band: "4-6", name: "Grade 4–6", sub: "Upper primary", className: "bg-[#f26a21]" },
+  { band: "7-9", name: "Grade 7–9", sub: "Junior school", className: "bg-ink text-white" },
+  { band: "all", name: "Stationery", sub: "Books, pens, sets", className: "bg-secondary" },
+]
+
+const steps = [
+  { title: "Find the school", body: "Search for your child's school and pick their grade. The list is the one the school published." },
+  { title: "Pay with M-Pesa", body: "Untick what you already have and pay. You get an SMS receipt and a collection code." },
+  { title: "Collect at school", body: "Publishers deliver to the school. Your child collects their labelled pack from the class teacher." },
+]
+
+export function HomePage() {
+  const products = useProducts()
+  return (
+    <>
+      <section className="bg-paper">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-12 px-5 py-16 md:py-20">
+          <div className="flex min-w-0 grow basis-[480px] flex-col gap-5">
+            <span className="text-sm font-bold tracking-[0.08em] text-accent-text uppercase">
+              Back to school, without the queues
+            </span>
+            <h1 className="text-[clamp(36px,5vw,60px)] leading-[1.05] font-semibold tracking-tight">
+              Your child's school list, delivered to school.
+            </h1>
+            <p className="max-w-[520px] text-lg leading-relaxed text-ink/85">
+              Find the school, pick the grade, pay with M-Pesa. The publishers deliver straight to the school and
+              your child collects their pack in class.
+            </p>
+            <SchoolSearch />
+            <Link to="/shop" className="self-start py-2 text-[15px] font-semibold text-accent-text hover:underline">
+              Or shop by grade without a school list
+            </Link>
+          </div>
+          <HeroListCard />
+        </div>
+      </section>
+
+      <section aria-label="Why SchoolShop" className="border-b">
+        <div className="mx-auto grid max-w-6xl gap-4 px-5 py-5.5 sm:grid-cols-3">
+          {perks.map((p) => (
+            <div key={p.title} className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warn-bg" aria-hidden>
+                <Check className="size-5 text-accent-text" />
+              </span>
+              <span className="flex flex-col">
+                <span className="text-[15px] font-semibold">{p.title}</span>
+                <span className="text-sm text-muted-foreground">{p.body}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="grades-h" className="mx-auto max-w-6xl px-5 pt-16 pb-6">
+        <h2 id="grades-h" className="mb-6 text-[32px] font-semibold">Shop by grade</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
+          {grades.map((g) => (
+            <Link
+              key={g.band}
+              to={`/shop?grade=${g.band}`}
+              className={cn("flex min-h-28 flex-col justify-end gap-1.5 rounded-2xl p-4.5 text-ink", g.className)}
+            >
+              <span className="font-display text-[22px] font-semibold">{g.name}</span>
+              <span className="text-sm">{g.sub}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="popular-h" className="mx-auto max-w-6xl px-5 pt-10 pb-16">
+        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="popular-h" className="text-[32px] font-semibold">Popular this term</h2>
+          <Link to="/shop" className="py-2 text-[15px] font-semibold text-accent-text hover:underline">
+            See the whole shop
+          </Link>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-5">
+          {products.data?.results.slice(0, 4).map((p) => <ProductCard key={p.id} product={p} />)}
+        </div>
+      </section>
+
+      <section aria-labelledby="how-h" className="bg-ink text-white">
+        <div className="mx-auto max-w-6xl px-5 py-16">
+          <h2 id="how-h" className="mb-8 text-[32px] font-semibold">How it works</h2>
+          <ol className="grid gap-7 md:grid-cols-3">
+            {steps.map((s, i) => (
+              <li key={s.title} className="flex flex-col gap-2.5">
+                <span className="font-display text-[44px] font-semibold text-sun">{i + 1}</span>
+                <span className="text-[19px] font-semibold">{s.title}</span>
+                <span className="leading-relaxed text-white/80">{s.body}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section aria-label="For schools and publishers" className="mx-auto grid max-w-6xl gap-5 px-5 py-16 md:grid-cols-2">
+        <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-warn-bg p-8">
+          <h2 className="text-[26px] font-semibold">For schools</h2>
+          <p className="leading-relaxed text-ink/85">
+            Publish each grade's booklist once. See who has ordered, receive one delivery per publisher and hand out
+            labelled packs.
+          </p>
+          <Button asChild size="lg">
+            <Link to="/for-schools">Register your school</Link>
+          </Button>
+        </div>
+        <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-paper p-8">
+          <h2 className="text-[26px] font-semibold">For publishers</h2>
+          <p className="leading-relaxed text-ink/85">
+            List your catalog once and get confirmed, prepaid orders grouped per school, with pick lists and payouts
+            on delivery.
+          </p>
+          <Button asChild size="lg">
+            <Link to="/for-publishers">Become a supplier</Link>
+          </Button>
+        </div>
+      </section>
+    </>
+  )
+}
+
+function SchoolSearch() {
+  const [q, setQ] = useState("")
+  const schools = useSchools(q)
+  const results = q.trim().length >= 2 ? (schools.data?.results ?? []) : []
+
+  return (
+    <div className="relative flex max-w-[560px] flex-col gap-2" role="search">
+      <Label htmlFor="school-search" className="text-[15px]">Find your child's school</Label>
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Input
+          id="school-search"
+          type="search"
+          autoComplete="off"
+          placeholder="School name or town"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="h-14 pl-11"
+          aria-controls="school-results"
+        />
+      </div>
+      {results.length > 0 && (
+        <ul id="school-results" className="absolute top-full z-10 mt-2 w-full overflow-hidden rounded-xl border bg-surface shadow-lg">
+          {results.map((s) => (
+            <li key={s.id}>
+              <Link to={`/schools/${s.slug}`} className="flex flex-col px-4 py-3 hover:bg-paper">
+                <span className="font-semibold">{s.name}</span>
+                <span className="text-sm text-muted-foreground">{s.town}, {s.county}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {q.trim().length >= 2 && schools.isSuccess && results.length === 0 && (
+        <p className="text-sm text-muted-foreground">No school matches “{q}”. Ask your school to join SchoolShop.</p>
+      )}
+    </div>
+  )
+}
+
+function HeroListCard() {
+  return (
+    <div aria-hidden className="flex min-w-0 grow basis-[360px] justify-center">
+      <div className="flex w-full max-w-[400px] flex-col gap-3.5 rounded-3xl border bg-surface p-5.5 shadow-[0_24px_48px_-24px_rgba(20,20,20,0.25)]">
+        <div className="flex items-center justify-between">
+          <span className="flex flex-col">
+            <span className="font-display text-lg font-semibold">Grade 4 · Term 1</span>
+            <span className="text-sm text-muted-foreground">Greenhill Academy</span>
+          </span>
+          <span className="rounded-full bg-warn-bg px-2.5 py-1 text-xs font-bold text-warn-fg">List ready</span>
+        </div>
+        <GradientBar value={1} className="h-1" />
+        <div className="flex flex-col gap-2.5 text-[15px]">
+          <Row label="Mathematics Activities" value="KES 650" />
+          <Row label="English Activities" value="KES 620" />
+          <Row label="Kiswahili Shughuli" value="KES 640" />
+          <Row label="+ 3 more required items" value="KES 1,840" muted />
+        </div>
+        <div className="h-px bg-border" />
+        <div className="flex items-baseline justify-between">
+          <span className="text-muted-foreground">Total</span>
+          <span className="font-display text-2xl font-semibold">KES 3,750</span>
+        </div>
+        <div className="flex h-12 items-center justify-center rounded-xl bg-ink font-semibold text-white">Pay with M-Pesa</div>
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className={cn("flex justify-between", muted && "text-muted-foreground")}>
+      <span>{label}</span>
+      <span className={cn(!muted && "font-semibold")}>{value}</span>
+    </div>
+  )
+}

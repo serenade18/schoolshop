@@ -1,7 +1,7 @@
 # SchoolShop — Product & System Design
 
 Status: **Draft v0.1** — for review before we start building.
-UI mockups: SchoolShop Screens canvas (claude.ai artifact, linked in the PR / chat).
+UI mockups: the SchoolShop Screens canvas (claude.ai artifact) and the Figma file "SchoolShop — App Design" (Parents row so far).
 
 ---
 
@@ -176,40 +176,79 @@ Screens in the canvas: Parent home · Booklist · M-Pesa checkout · Order track
 
 ## 10. Technical architecture
 
-**Recommendation: a single TypeScript web app with a background worker.** It's the simplest setup to build and run with a small team, and it can be split up later if needed.
+**Stack: a React single-page app (Vite) talking to a Django REST Framework API on PostgreSQL.** One SPA serves the public shop, the parent app and the three dashboards; one Django project serves the API, the admin tools and the background jobs.
+
+### Frontend (`frontend/`) — built first
+
+| Concern | Choice |
+|---|---|
+| App & build | **React + Vite** |
+| Language | **TypeScript** (strict) |
+| Routing between dashboards | **React Router**: route groups per role, guarded by `RequireRole`, lazy-loaded per role |
+| Client state | **Zustand**: auth session, in-progress cart (persisted to localStorage) |
+| API calls | **Axios**: one client with the auth header and DRF error normalisation |
+| Server state | **TanStack Query**: caching, refetching, payment-status polling |
+| Runtime validation | **Zod**: every API response is parsed at the boundary; form schemas |
+| Forms | **React Hook Form** + Zod resolver |
+| UI | **shadcn/ui + Tailwind CSS** (v4), themed with the brand tokens in §9 |
+
+Until the backend exists, `VITE_USE_MOCKS=true` swaps Axios's adapter for an in-browser mock that follows the same URLs, status codes and error shapes as the planned API.
+
+### Backend (`backend/`) — next
 
 | Layer | Choice | Why |
 |---|---|---|
-| Web app | **Next.js (App Router) + TypeScript** | One codebase for the parent PWA and the school and publisher dashboards; server rendering keeps pages light for parents. |
-| UI | Tailwind CSS + a small in-house component set built on the tokens above | Fast to build, consistent styling. |
-| Database | **PostgreSQL** + Prisma ORM | Relational data (orders, ledger), transactions, jsonb for provider callbacks. |
-| Background jobs | **pg-boss** worker (same Postgres) | Deadline batching, SMS sending, payment status polling, payouts. No extra infrastructure. |
-| Auth | Parents: **phone + SMS OTP**. Staff: email + password with optional OTP. Sessions via Auth.js. | Parents in Kenya identify by phone number, which is also their M-Pesa number. |
+| API | **Django + Django REST Framework** | Batteries-included admin, ORM, auth, permissions. |
+| JSON style | `djangorestframework-camel-case` | The API speaks camelCase, so the TypeScript types map 1:1. |
+| Database | **PostgreSQL** | Relational data (orders, ledger), transactions, jsonb for provider callbacks. |
+| Auth | Phone + SMS OTP for parents; email + password for staff; **JWT** via `djangorestframework-simplejwt` | Parents in Kenya identify by phone number, which is also their M-Pesa number. |
+| Background jobs | **Celery + Redis** (`celery beat` for schedules) | Deadline batching, SMS, payment reconciliation, payouts. |
 | M-Pesa | **Safaricom Daraja**: STK Push (C2B) to collect, Transaction Status for checks, B2C for refunds, B2B for payouts | Most parents pay this way. |
 | Cards | **Paystack** or **Flutterwave** (both support KES) | Backup payment method; choose based on fees and settlement terms. |
 | SMS | **Africa's Talking** | Local delivery rates, sender ID. |
 | Email | Resend or Postmark | Transactional email for staff. |
-| Files | S3-compatible storage (Cloudflare R2) | Book covers, CSV imports, delivery notes. |
-| Hosting | Docker containers (web + worker) on Railway / Render / Fly, managed Postgres | Simple deploys; Daraja callbacks need a stable public HTTPS URL. |
-| Observability | Sentry + structured logs; uptime check on the payment callback URL | Payment callbacks must never be missed silently. |
+| Files | S3-compatible storage (Cloudflare R2) via `django-storages` | Book covers, CSV imports, delivery notes. |
+| Hosting | Docker containers (API, worker, beat) on Railway / Render / Fly; managed Postgres + Redis; SPA on a CDN | Simple deploys; Daraja callbacks need a stable public HTTPS URL. |
+| Observability | Sentry (frontend + backend), structured logs, uptime check on the payment callback URL | Payment callbacks must never be missed silently. |
 
-### 10.1 App structure
+### 10.1 Repository layout
 
 ```
-/app
-  /(parent)        /, /children, /lists/[id], /checkout/[orderId], /orders/[id]
-  /(school)        /school, /school/booklists, /school/orders, /school/deliveries, /school/collection
-  /(publisher)     /publisher, /publisher/catalog, /publisher/batches/[id], /publisher/payouts
-  /(admin)         /admin/orgs, /admin/refunds, /admin/payouts
-  /api
-    /mpesa/callback      Daraja STK result (idempotent, verified)
-    /cards/webhook
-/server
-  /domain     orders, booklists, batches, ledger (pure business logic + tests)
-  /payments   mpesa.ts, cards.ts
-  /jobs       buildBatches, sendSms, reconcilePayments, runPayouts
-/prisma       schema.prisma, migrations
+frontend/                     React + Vite SPA
+  src/app/router.tsx          all routes, per-role guards and lazy loading
+  src/lib/api/                schemas.ts (Zod), client.ts (Axios), endpoints.ts, queries.ts (TanStack)
+  src/stores/                 auth.ts, cart.ts (Zustand)
+  src/components/ui/          shadcn/ui primitives
+  src/pages/                  public/, auth/, parent/, school/, publisher/, admin/
+  src/mocks/                  fixture data + mock Axios adapter
+backend/                      Django project (next step)
+  accounts/                   users, memberships, phone OTP
+  schools/                    schools, grades, classes, students, guardians
+  catalog/                    publishers, products
+  booklists/                  terms, booklists, items (price snapshots)
+  orders/                     orders, items, collections
+  payments/                   M-Pesa + card adapters, callbacks, refunds
+  fulfilment/                 school batches, dispatch, receipt
+  ledger/                     double-entry ledger, payouts
+docs/
 ```
+
+### API contract (first cut)
+
+| Method & path | Used by |
+|---|---|
+| `POST /api/auth/otp/request/` · `POST /api/auth/otp/verify/` · `GET /api/me/` | sign-in |
+| `GET /api/schools/?search=` · `GET /api/schools/{slug}/` · `GET /api/schools/{slug}/booklists/` | public site |
+| `GET /api/products/?gradeBand=` · `GET /api/products/{id}/` | shop |
+| `GET /api/children/` · `GET /api/booklists/{id}/` | parent |
+| `POST /api/orders/` · `GET /api/orders/` · `GET /api/orders/{id}/` | parent checkout & tracking |
+| `POST /api/orders/{id}/payments/` · `GET /api/payments/{id}/` | M-Pesa STK push + status polling |
+| `POST /api/payments/mpesa/callback/` | Daraja (server-to-server) |
+| `GET /api/school/overview/` · `GET /api/school/booklists/` | school dashboard |
+| `GET /api/publisher/batches/` | publisher dashboard |
+| `GET /api/admin/overview/` | platform admin |
+
+The Zod schemas in `frontend/src/lib/api/schemas.ts` are the source of truth for these response shapes until the DRF serializers exist.
 
 ### 10.2 Things that must be correct
 
