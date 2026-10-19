@@ -1,7 +1,8 @@
 import { Link } from "react-router"
-import { BookOpen, Check, GraduationCap, Library, PencilRuler, School, Search } from "lucide-react"
+import { ArrowRight, BookOpen, Check, GraduationCap, Library, PencilRuler, School, Search } from "lucide-react"
 
 import { GradientBar } from "@/components/common/GradientBar"
+import { Reveal } from "@/components/common/Reveal"
 import { ProductCard } from "@/components/common/ProductCard"
 import { Button } from "@/components/ui/button"
 import { useProducts } from "@/lib/api/queries"
@@ -51,6 +52,7 @@ export function HomePage() {
             <div className="hero__ctas">
               <Link to="/schools" className="hero-btn hero-btn--primary">
                 Find My School
+                <ArrowRight className="hero-btn__icon" aria-hidden />
               </Link>
               <Link to="/shop?view=grade" className="hero-btn hero-btn--ghost">
                 Shop by Grade
@@ -68,25 +70,25 @@ export function HomePage() {
 
       <section aria-label="Why SchoolShop" className="border-b">
         <div className="mx-auto grid max-w-6xl gap-4 px-5 py-5.5 sm:grid-cols-3">
-          {perks.map((p) => (
-            <div key={p.title} className="flex items-center gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warn-bg" aria-hidden>
+          {perks.map((p, i) => (
+            <Reveal key={p.title} delay={i * 110} className="flex items-center gap-3">
+              <span className="pop-in flex size-10 shrink-0 items-center justify-center rounded-full bg-warn-bg" aria-hidden>
                 <Check className="size-5 text-accent-text" />
               </span>
               <span className="flex flex-col">
                 <span className="text-[15px] font-semibold">{p.title}</span>
                 <span className="text-sm text-muted-foreground">{p.body}</span>
               </span>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <section aria-labelledby="shop-categories-h" className="mx-auto max-w-6xl px-5 pt-14 pb-2">
-        <div className="mb-6 max-w-2xl">
+        <Reveal className="mb-6 max-w-2xl">
           <h2 id="shop-categories-h" className="text-[clamp(26px,4vw,32px)] font-semibold">Shop your way</h2>
           <p className="mt-2 text-ink/80">Find your school's approved list or browse our central catalogue by grade, curriculum or product type.</p>
-        </div>
+        </Reveal>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {[
             { title: "Shop by School", body: "Approved school lists", to: "/schools", Icon: School },
@@ -95,80 +97,95 @@ export function HomePage() {
             { title: "College & University", body: "Higher education", to: "/shop?category=college", Icon: Library },
             { title: "Stationery & Supplies", body: "Everyday essentials", to: "/shop?category=stationery", Icon: PencilRuler },
             { title: "Shop All", body: "Explore all products", to: "/shop", Icon: Search },
-          ].map(({ title, body, to, Icon }) => (
-            <Link key={title} to={to} className="flex min-h-36 flex-col gap-3 rounded-2xl border p-4 transition-colors hover:border-ink/40 hover:bg-paper">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-warn-bg"><Icon className="size-5 text-accent-text" aria-hidden /></span>
-              <span className="font-semibold leading-tight">{title}</span>
-              <span className="text-sm text-muted-foreground">{body}</span>
-            </Link>
+          ].map(({ title, body, to, Icon }, i) => (
+            <Reveal key={title} fill delay={i * 70}>
+              <Link to={to} className="lift flex min-h-36 flex-col gap-3 rounded-2xl border bg-surface p-4 hover:border-ink/40">
+                <span className="lift__icon flex size-10 items-center justify-center rounded-xl bg-warn-bg"><Icon className="size-5 text-accent-text" aria-hidden /></span>
+                <span className="font-semibold leading-tight">{title}</span>
+                <span className="text-sm text-muted-foreground">{body}</span>
+              </Link>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <section aria-labelledby="grades-h" className="mx-auto max-w-6xl px-5 pt-16 pb-6">
-        <h2 id="grades-h" className="mb-6 text-[clamp(26px,4vw,32px)] font-semibold">Shop by grade</h2>
+        <Reveal>
+          <h2 id="grades-h" className="mb-6 text-[clamp(26px,4vw,32px)] font-semibold">Shop by grade</h2>
+        </Reveal>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {grades.map((g) => (
-            <Link
-              key={g.band}
-              to={`/shop?grade=${g.band}`}
-              className={cn("flex min-h-28 flex-col justify-end gap-1.5 rounded-2xl p-4.5 text-ink", g.className)}
-            >
-              <span className="font-display text-[22px] font-semibold">{g.name}</span>
-              <span className="text-sm">{g.sub}</span>
-            </Link>
+          {grades.map((g, i) => (
+            <Reveal key={g.band} fill delay={i * 80}>
+              <Link
+                to={`/shop?grade=${g.band}`}
+                className={cn("lift flex min-h-28 flex-col justify-end gap-1.5 rounded-2xl p-4.5 text-ink", g.className)}
+              >
+                <span className="font-display text-[22px] font-semibold">{g.name}</span>
+                <span className="text-sm">{g.sub}</span>
+              </Link>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <section aria-labelledby="popular-h" className="mx-auto max-w-6xl px-5 pt-10 pb-16">
-        <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
+        <Reveal className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
           <h2 id="popular-h" className="text-[clamp(26px,4vw,32px)] font-semibold">Popular this term</h2>
           <Link to="/shop" className="py-2 text-[15px] font-semibold text-accent-text hover:underline">
             See the whole shop
           </Link>
-        </div>
+        </Reveal>
         <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-5">
-          {products.data?.results.slice(0, 4).map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
+          {products.data?.results.slice(0, 4).map((p, i) => (
+            <Reveal key={p.id} fill delay={i * 90}>
+              <ProductCard product={p} index={i} />
+            </Reveal>
+          ))}
         </div>
       </section>
 
       <section aria-labelledby="how-h" className="bg-ink text-white">
         <div className="mx-auto max-w-6xl px-5 py-16">
-          <h2 id="how-h" className="mb-8 text-[clamp(26px,4vw,32px)] font-semibold">How it works</h2>
+          <Reveal>
+            <h2 id="how-h" className="mb-8 text-[clamp(26px,4vw,32px)] font-semibold">How it works</h2>
+          </Reveal>
           <ol className="grid gap-7 md:grid-cols-3">
             {steps.map((s, i) => (
-              <li key={s.title} className="flex flex-col gap-2.5">
-                <span className="font-display text-[44px] font-semibold text-sun">{i + 1}</span>
+              <Reveal as="li" key={s.title} delay={i * 140} className="flex flex-col gap-2.5">
+                <span className="pop-in font-display text-[44px] font-semibold text-sun">{i + 1}</span>
                 <span className="text-[19px] font-semibold">{s.title}</span>
                 <span className="leading-relaxed text-white/80">{s.body}</span>
-              </li>
+              </Reveal>
             ))}
           </ol>
         </div>
       </section>
 
       <section aria-label="For schools and publishers" className="mx-auto grid max-w-6xl gap-5 px-5 py-16 md:grid-cols-2">
-        <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-warn-bg p-8">
-          <h2 className="text-[26px] font-semibold">For schools</h2>
-          <p className="leading-relaxed text-ink/85">
-            Publish each grade's booklist once. See who has ordered, receive one delivery per publisher and hand out
-            labelled packs.
-          </p>
-          <Button asChild size="lg">
-            <Link to="/for-schools">Register your school</Link>
-          </Button>
-        </div>
-        <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-paper p-8">
-          <h2 className="text-[26px] font-semibold">For publishers</h2>
-          <p className="leading-relaxed text-ink/85">
-            List your catalog once and get confirmed, prepaid orders grouped per school, with pick lists and payouts
-            on delivery.
-          </p>
-          <Button asChild size="lg">
-            <Link to="/for-publishers">Become a supplier</Link>
-          </Button>
-        </div>
+        <Reveal from="left" fill>
+          <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-warn-bg p-8">
+            <h2 className="text-[26px] font-semibold">For schools</h2>
+            <p className="leading-relaxed text-ink/85">
+              Publish each grade's booklist once. See who has ordered, receive one delivery per publisher and hand out
+              labelled packs.
+            </p>
+            <Button asChild size="lg">
+              <Link to="/for-schools">Register your school</Link>
+            </Button>
+          </div>
+        </Reveal>
+        <Reveal from="right" fill delay={120}>
+          <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-paper p-8">
+            <h2 className="text-[26px] font-semibold">For publishers</h2>
+            <p className="leading-relaxed text-ink/85">
+              List your catalog once and get confirmed, prepaid orders grouped per school, with pick lists and payouts
+              on delivery.
+            </p>
+            <Button asChild size="lg">
+              <Link to="/for-publishers">Become a supplier</Link>
+            </Button>
+          </div>
+        </Reveal>
       </section>
     </>
   )

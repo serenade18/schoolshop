@@ -28,8 +28,8 @@ export function BookCover({ product, index = 0, className }: { product: Product;
 export function ProductCard({ product, action, index = 0 }: { product: Product; action?: ReactNode; index?: number }) {
   const href = `/shop/${product.id}`
   return (
-    <article className="group flex min-w-0 flex-col gap-2.5">
-      <Link to={href} tabIndex={-1} aria-hidden className="block transition-transform group-hover:-translate-y-0.5">
+    <article className="product-card group flex min-w-0 flex-col gap-2.5">
+      <Link to={href} tabIndex={-1} aria-hidden className="product-cover block">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
