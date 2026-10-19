@@ -30,7 +30,22 @@ export function ProductCard({ product, action, index = 0 }: { product: Product; 
   return (
     <article className="group flex min-w-0 flex-col gap-2.5">
       <Link to={href} tabIndex={-1} aria-hidden className="block transition-transform group-hover:-translate-y-0.5">
-        <BookCover product={product} index={index} />
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt=""
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display = "none"
+              const fallback = event.currentTarget.nextElementSibling as HTMLElement | null
+              if (fallback) fallback.style.display = "flex"
+            }}
+            className="aspect-[3/4] w-full rounded-xl bg-paper object-cover"
+          />
+        ) : null}
+        <span style={{ display: product.imageUrl ? "none" : "flex" }}>
+          <BookCover product={product} index={index} />
+        </span>
       </Link>
       <div className="flex flex-col gap-0.5">
         <h3 className="font-sans text-[15px] leading-snug font-semibold">

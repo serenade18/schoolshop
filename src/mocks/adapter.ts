@@ -114,8 +114,19 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     return db.booklists.filter((b) => b.schoolId === school.id && b.status === "published")
   }],
   ["get", "/products/", ({ query }) => {
-    const band = query.gradeBand
-    const results = db.products.filter((p) => !band || band === "all" || p.gradeBand === band || p.gradeBand === "all")
+    let results = [...db.products]
+    if (query.gradeBand && query.gradeBand !== "all") results = results.filter((p) => p.gradeBand === query.gradeBand || p.gradeBand === "all")
+    if (query.category && query.category !== "all") results = results.filter((p) => p.category === query.category || (query.category === "textbook" && !p.category && p.gradeBand !== "all"))
+    if (query.curriculum) results = results.filter((p) => p.curricula?.includes(query.curriculum!) ?? query.curriculum === "cbe")
+    if (query.audience) results = results.filter((p) => p.audience === query.audience || p.audience === "all")
+    if (query.department) results = results.filter((p) => p.department === query.department)
+    if (query.subject) results = results.filter((p) => p.subject.toLowerCase() === query.subject!.toLowerCase())
+    if (query.publisher) results = results.filter((p) => p.publisherName.toLowerCase() === query.publisher!.toLowerCase())
+    if (query.search) results = results.filter((p) => `${p.title} ${p.publisherName} ${p.subject}`.toLowerCase().includes(query.search!.toLowerCase()))
+    if (query.sort === "price_asc") results.sort((a, b) => a.priceCents - b.priceCents)
+    else if (query.sort === "price_desc") results.sort((a, b) => b.priceCents - a.priceCents)
+    else if (query.sort === "title") results.sort((a, b) => a.title.localeCompare(b.title))
+    else results.sort((a, b) => b.schoolListCount - a.schoolListCount)
     return { count: results.length, next: null, previous: null, results }
   }],
   ["get", "/products/:id/", ({ params }) => db.productDetail(db.products.find((p) => p.id === params.id) ?? raise(notFound()))],

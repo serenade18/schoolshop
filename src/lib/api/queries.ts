@@ -7,7 +7,7 @@ export const queryKeys = {
   schools: (search: string) => ["schools", search] as const,
   school: (slug: string) => ["school", slug] as const,
   schoolBooklists: (slug: string) => ["school", slug, "booklists"] as const,
-  products: (band?: string) => ["products", band ?? "all"] as const,
+  products: (filters?: Record<string, string>) => ["products", filters ?? {}] as const,
   product: (id: string) => ["product", id] as const,
   children: ["children"] as const,
   booklist: (id: string) => ["booklist", id] as const,
@@ -24,7 +24,7 @@ export const useSchools = (search: string) =>
   useQuery({
     queryKey: queryKeys.schools(search),
     queryFn: () => endpoints.searchSchools(search),
-    enabled: search.trim().length >= 2,
+    enabled: true,
     placeholderData: (prev) => prev,
   })
 
@@ -37,8 +37,25 @@ export const useSchoolBooklists = (slug: string) =>
     queryFn: () => endpoints.listSchoolBooklists(slug),
   })
 
-export const useProducts = (band?: string) =>
-  useQuery({ queryKey: queryKeys.products(band), queryFn: () => endpoints.listProducts(band) })
+export type ProductFilters = {
+  gradeBand?: string
+  category?: string
+  curriculum?: string
+  audience?: string
+  department?: string
+  search?: string
+  subject?: string
+  publisher?: string
+  sort?: string
+}
+
+export const useProducts = (filters: ProductFilters = {}) => {
+  const keyFilters = Object.fromEntries(Object.entries(filters).filter(([, v]) => !!v))
+  return useQuery({
+    queryKey: queryKeys.products(keyFilters),
+    queryFn: () => endpoints.listProducts(keyFilters),
+  })
+}
 
 export const useProduct = (id: string) =>
   useQuery({ queryKey: queryKeys.product(id), queryFn: () => endpoints.getProduct(id) })

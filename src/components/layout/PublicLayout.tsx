@@ -10,7 +10,7 @@ import { useCartStore } from "@/stores/cart"
 
 const links = [
   { to: "/shop", label: "Shop" },
-  { to: "/schools/greenhill-academy", label: "Find your school" },
+  { to: "/schools", label: "Shop by School" },
   { to: "/for-schools", label: "For schools" },
   { to: "/for-publishers", label: "For publishers" },
 ]
