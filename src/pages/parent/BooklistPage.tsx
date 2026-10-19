@@ -41,6 +41,7 @@ export function BooklistPage() {
               title={child ? `${child.name}'s ${list.termName.split(",")[0]} list` : `${list.gradeName} list`}
               subtitle={`${child?.className ?? list.gradeName} · ${list.schoolName}`}
             />
+            <div className="parent-split">
             <div className="flex flex-col gap-3">
               <p className="flex items-start gap-2.5 rounded-xl bg-warn-bg p-3.5 text-sm leading-snug text-[#5c2208]">
                 <Info className="mt-0.5 size-4.5 shrink-0 text-warn-fg" aria-hidden />
@@ -56,7 +57,7 @@ export function BooklistPage() {
                 {list.items.map((item) => {
                   const id = `item-${item.id}`
                   return (
-                    <li key={item.id} className="rounded-xl border bg-card">
+                    <li key={item.id} className="parent-row rounded-xl border bg-card">
                       <label htmlFor={id} className="flex cursor-pointer items-center gap-3 p-3.5">
                         <Checkbox
                           id={id}
@@ -81,7 +82,7 @@ export function BooklistPage() {
                 })}
               </ul>
             </div>
-            <div className="fixed inset-x-0 bottom-[76px] z-10 mx-auto flex max-w-lg flex-col gap-2.5 border-t bg-surface px-5 py-3.5 md:border-x">
+            <div className="parent-summary fixed inset-x-0 bottom-[76px] z-10 mx-auto flex max-w-lg flex-col gap-2.5 border-t bg-surface px-5 py-3.5 md:border-x">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-muted-foreground">
                   {chosen.length} of {list.items.length} selected
@@ -96,7 +97,8 @@ export function BooklistPage() {
                 <Button size="lg" disabled>Choose at least one item</Button>
               )}
             </div>
-            <div className="h-32" aria-hidden />
+            </div>
+            <div className="parent-spacer h-32" aria-hidden />
           </>
         )
       }}

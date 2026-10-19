@@ -37,7 +37,8 @@ export function OrderPage() {
               <Button asChild><Link to="/parent">Back to home</Link></Button>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="parent-split flex flex-col gap-4">
+              <div className="parent-col flex flex-col gap-4">
               {o.collectionCode && o.status !== "collected" && (
                 <section aria-label="Collection code" className="flex flex-col gap-1.5 rounded-2xl bg-ink p-4.5 text-white">
                   <SectionLabel as="span" className="text-sun">Collection code</SectionLabel>
@@ -70,6 +71,7 @@ export function OrderPage() {
                   ))}
                 </ol>
               </section>
+              </div>
               <section aria-label="Shipments" className="flex flex-col gap-2">
                 <SectionLabel>From {o.shipments.length} publishers</SectionLabel>
                 {o.shipments.map((s) => (

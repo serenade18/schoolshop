@@ -98,7 +98,8 @@ function Checkout({ list }: { list: Booklist }) {
     <>
       <ParentPageHeader back={`/parent/lists/${list.id}?student=${cart.studentId}`} title="Checkout" />
       <CheckoutSteps current={1} />
-      <div className="mt-5 flex flex-col gap-3.5">
+      <div className="parent-split mt-5 flex flex-col gap-3.5">
+        <div className="parent-col flex flex-col gap-3.5" style={{ "--col-gap": "14px" } as React.CSSProperties}>
         <section aria-label="School list" className="flex flex-col gap-2.5 rounded-2xl border bg-card p-4">
           <div className="flex items-start justify-between gap-3">
             <span className="flex flex-col gap-0.5">
@@ -139,6 +140,9 @@ function Checkout({ list }: { list: Booklist }) {
           </span>
         </section>
 
+        </div>
+
+        <div className="parent-col parent-col--sticky flex flex-col gap-3.5" style={{ "--col-gap": "14px" } as React.CSSProperties}>
         <dl className="flex flex-col gap-2 px-1 text-[15px]">
           <div className="flex justify-between"><dt className="text-muted-foreground">School list</dt><dd>{formatKes(listTotal)}</dd></div>
           {extras.length > 0 && (
@@ -177,6 +181,7 @@ function Checkout({ list }: { list: Booklist }) {
             </p>
           </form>
         </Form>
+        </div>
       </div>
     </>
   )

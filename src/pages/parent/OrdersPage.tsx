@@ -19,7 +19,7 @@ export function OrdersPage() {
             <ul className="flex flex-col gap-2">
               {data.results.map((o) => (
                 <li key={o.id}>
-                  <Link to={`/parent/orders/${o.id}`} className="flex items-center gap-3 rounded-xl border bg-card p-3.5">
+                  <Link to={`/parent/orders/${o.id}`} className="parent-row flex items-center gap-3 rounded-xl border bg-card p-3.5">
                     <span className="flex min-w-0 grow flex-col gap-0.5">
                       <span className="font-semibold">#{o.number} · {o.studentName}</span>
                       <span className="text-sm text-muted-foreground">{o.schoolName} · {formatKes(o.totalCents)}</span>

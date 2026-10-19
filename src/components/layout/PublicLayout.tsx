@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { homeForRole, useAuthStore } from "@/stores/auth"
 import { useCartStore } from "@/stores/cart"
+import "@/styles/motion.css"
 
 const links = [
   { to: "/shop", label: "Shop" },
@@ -36,7 +37,7 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="sticky top-0 z-30 border-b bg-surface/95 backdrop-blur">
+      <header className="site-header sticky top-0 z-30 border-b bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-x-7 px-5 md:h-[72px]">
           <Link to="/" aria-label="SchoolShop home" className="flex shrink-0">
             <Logo label="" className="h-6 md:h-7" />
@@ -48,7 +49,7 @@ export function PublicLayout() {
                 to={l.to}
                 className={({ isActive }) =>
                   cn(
-                    "rounded-md px-2.5 py-3 text-[15px] font-semibold whitespace-nowrap text-ink",
+                    "nav-link rounded-md px-2.5 py-3 text-[15px] font-semibold whitespace-nowrap text-ink",
                     isActive && "underline decoration-2 underline-offset-[6px]"
                   )
                 }
@@ -63,7 +64,7 @@ export function PublicLayout() {
               <Link to="/parent/checkout">
                 <ShoppingCart aria-hidden />
                 {extrasCount > 0 && (
-                  <span aria-hidden className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-sun text-[11px] font-bold text-ink">
+                  <span key={extrasCount} aria-hidden className="badge-pop absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-sun text-[11px] font-bold text-ink">
                     {extrasCount}
                   </span>
                 )}
@@ -83,7 +84,7 @@ export function PublicLayout() {
           </div>
         </div>
         {menuOpen && (
-          <div id="public-menu" className="border-t bg-surface px-5 pt-2 pb-5 lg:hidden">
+          <div id="public-menu" className="menu-enter border-t bg-surface px-5 pt-2 pb-5 lg:hidden">
             <nav aria-label="Main" className="flex flex-col">
               {links.map((l) => (
                 <NavLink
@@ -109,7 +110,9 @@ export function PublicLayout() {
         )}
       </header>
       <main className="grow">
-        <Outlet />
+        <div key={pathname} className="page-enter">
+          <Outlet />
+        </div>
       </main>
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-sm text-muted-foreground">

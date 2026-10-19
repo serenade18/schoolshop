@@ -16,26 +16,31 @@ export function ParentHomePage() {
   const children = useChildren()
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="parent-home flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <p className="text-[15px] text-muted-foreground">Hello{name ? `, ${name}` : ""}</p>
         <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Term 1 shopping, sorted.</h1>
       </div>
 
-      <section aria-label="Your children" className="flex flex-col gap-3">
-        <QueryBoundary query={children}>
-          {(list) => (
-            <>
+      <QueryBoundary query={children}>
+        {(list) => (
+          <>
+            <div className="parent-stats">
+              <Stat value={list.length} label={list.length === 1 ? "Child" : "Children"} />
+              <Stat value={list.filter((c) => c.openBooklist).length} label="Lists ready to order" />
+              <Stat value={list.filter((c) => c.latestOrder && c.latestOrder.status !== "collected").length} label="Orders in progress" />
+            </div>
+            <section aria-label="Your children" className="parent-cards flex flex-col gap-3">
               {list.map((c) => <ChildCard key={c.id} child={c} />)}
               <Button asChild variant="outline" size="lg" className="border-dashed bg-transparent">
                 <Link to="/parent/children">
                   <Plus aria-hidden /> Add a child with school code
                 </Link>
               </Button>
-            </>
-          )}
-        </QueryBoundary>
-      </section>
+            </section>
+          </>
+        )}
+      </QueryBoundary>
 
       <section aria-label="Delivery" className="flex items-start gap-3 rounded-2xl bg-ink p-4.5 text-white">
         <School className="mt-0.5 size-5.5 shrink-0 text-sun" aria-hidden />
@@ -46,6 +51,15 @@ export function ParentHomePage() {
           </span>
         </div>
       </section>
+    </div>
+  )
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="parent-stat">
+      <span className="parent-stat__value font-display">{value}</span>
+      <span className="parent-stat__label">{label}</span>
     </div>
   )
 }
