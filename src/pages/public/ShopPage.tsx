@@ -1,10 +1,9 @@
 import { Link, useSearchParams } from "react-router"
-import { BookOpen, GraduationCap, Library, PencilRuler, School, Search } from "lucide-react"
+import { BookOpen, GraduationCap, Library, PencilRuler, School } from "lucide-react"
 
 import { ProductCard } from "@/components/common/ProductCard"
 import { QueryBoundary } from "@/components/common/QueryBoundary"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { NativeSelect } from "@/components/ui/select"
 import { useProducts, type ProductFilters } from "@/lib/api/queries"
 import { cn } from "@/lib/utils"
