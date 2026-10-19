@@ -43,8 +43,8 @@ export function ProductCard({ product, action, index = 0 }: { product: Product; 
             className="aspect-[3/4] w-full rounded-xl bg-paper object-cover"
           />
         ) : null}
-        <span style={{ display: product.imageUrl ? "none" : "flex" }}>
-          <BookCover product={product} index={index} />
+        <span className="w-full" style={{ display: product.imageUrl ? "none" : "flex" }}>
+          <BookCover product={product} index={index} className="w-full" />
         </span>
       </Link>
       <div className="flex flex-col gap-0.5">
