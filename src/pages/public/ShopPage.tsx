@@ -130,10 +130,6 @@ export function ShopPage() {
           )}
 
           <div className="flex flex-col gap-2 lg:mt-1 lg:border-t lg:pt-4">
-            <div className="relative w-full">
-              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input aria-label="Search products" value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search titles, subjects, publishers" className="h-10 pl-10 text-sm md:text-sm" />
-            </div>
             <NativeSelect className="h-10 text-sm" aria-label="Filter by subject" value={subject} onChange={(e) => update("subject", e.target.value)}>
               <option value="">All subjects</option>
               {Array.from(new Set(products.data?.results.map((p) => p.subject) ?? [])).sort().map((name) => <option key={name} value={name}>{name}</option>)}
