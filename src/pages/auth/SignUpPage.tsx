@@ -109,7 +109,7 @@ function DetailsStep({ onSent }: { onSent: (phone: string, destination: string) 
                   onClick={() => to && navigate(to)}
                   className={cn(
                     "flex min-w-0 flex-col items-start gap-1.5 rounded-2xl p-3 text-left transition-colors",
-                    on ? "border-2 border-ink bg-[#fff8ee]" : "border bg-surface hover:bg-paper"
+                    on ? "border-2 border-teal bg-teal-light" : "border bg-surface hover:bg-paper"
                   )}
                 >
                   <span className={cn("flex size-8 items-center justify-center rounded-[10px]", on ? "bg-sun" : "bg-secondary")}>

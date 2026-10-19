@@ -88,7 +88,7 @@ function Booklists({ lists }: { lists: Booklist[] }) {
           <ul>
             {list.items.map((i) => (
               <li key={i.id} className="flex items-center gap-3.5 border-b border-secondary py-3.5 last:border-0">
-                <span aria-hidden className="h-13.5 w-10 shrink-0 rounded-md bg-linear-to-b from-[#fde7c8] to-sun/70" />
+                <span aria-hidden className="h-13.5 w-10 shrink-0 rounded-md bg-linear-to-b from-orange-light to-sun/70" />
                 <span className="flex min-w-0 grow flex-col gap-0.5">
                   <span className="font-semibold">{i.title}</span>
                   <span className="flex items-center gap-2 text-sm text-muted-foreground">

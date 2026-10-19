@@ -57,7 +57,7 @@ export function OrderPage() {
                           className={cn(
                             "mt-0.5 size-4 shrink-0 rounded-full",
                             s.state === "done" && "bg-ink",
-                            s.state === "now" && "bg-flame ring-4 ring-[#fde1d6]",
+                            s.state === "now" && "bg-flame ring-4 ring-orange-light",
                             s.state === "todo" && "border-2 border-line-strong bg-surface"
                           )}
                         />
