@@ -1,12 +1,11 @@
 import { Link } from "react-router"
-import { ArrowRight, BookOpen, Check, GraduationCap, Library, PencilRuler, School, Search } from "lucide-react"
+import { ArrowRight, BookOpen, Check, GraduationCap, Library, PencilRuler, School } from "lucide-react"
 
 import { GradientBar } from "@/components/common/GradientBar"
 import { Reveal } from "@/components/common/Reveal"
 import { ProductCard } from "@/components/common/ProductCard"
 import { Button } from "@/components/ui/button"
 import { useProducts } from "@/lib/api/queries"
-import { cn } from "@/lib/utils"
 import heroImage from "@/assets/home/hero.webp"
 import "./hero.css"
 
