@@ -29,16 +29,16 @@
   position: absolute;
   inset: 0;
   z-index: -2;
-  background: rgba(20, 20, 20, 0.85);
+  background: rgba(16, 19, 19, 0.85);
 }
 @media (min-width: 768px) {
   .hero__scrim {
     background: linear-gradient(
       90deg,
-      rgba(20, 20, 20, 0.97) 0%,
-      rgba(20, 20, 20, 0.9) 36%,
-      rgba(20, 20, 20, 0.4) 64%,
-      rgba(20, 20, 20, 0.04) 100%
+      rgba(16, 19, 19, 0.97) 0%,
+      rgba(16, 19, 19, 0.9) 36%,
+      rgba(11, 70, 62, 0.42) 64%,
+      rgba(11, 124, 107, 0.1) 100%
     );
   }
 }
@@ -51,7 +51,7 @@
   width: 560px;
   height: 560px;
   border-radius: 50%;
-  background: linear-gradient(to top right, var(--flame), var(--sun));
+  background: linear-gradient(to top right, var(--teal), var(--orange));
   opacity: 0.35;
   mix-blend-mode: soft-light;
   filter: blur(64px);
@@ -103,7 +103,7 @@
 }
 .hero__title em {
   font-style: normal;
-  background: linear-gradient(to right, var(--sun), #ff7a3d);
+  background: linear-gradient(to right, var(--sun), var(--flame));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -142,13 +142,13 @@
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 .hero-btn:hover { transform: translateY(-1px); }
-.hero-btn:focus-visible { outline: 3px solid rgba(250, 172, 28, 0.6); outline-offset: 2px; }
+.hero-btn:focus-visible { outline: 3px solid rgba(255, 99, 32, 0.6); outline-offset: 2px; }
 .hero-btn--primary {
-  background: var(--sun);
+  background: var(--orange);
   color: var(--ink);
-  box-shadow: 0 12px 28px -10px rgba(250, 172, 28, 0.7);
+  box-shadow: 0 12px 28px -10px rgba(255, 99, 32, 0.7);
 }
-.hero-btn--primary:hover { background: #ffbd3d; }
+.hero-btn--primary:hover { background: #ff7a40; }
 .hero-btn--ghost {
   border: 1.5px solid rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.08);

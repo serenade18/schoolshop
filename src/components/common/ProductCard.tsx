@@ -5,7 +5,7 @@ import type { Product } from "@/lib/api/schemas"
 import { formatKes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-const coverTones = ["bg-sun text-ink", "bg-ink text-white", "bg-[#f26a21] text-ink", "bg-[#fde7c8] text-ink"]
+const coverTones = ["bg-teal text-white", "bg-orange text-ink", "bg-teal-light text-ink", "bg-orange-light text-ink"]
 
 /** Placeholder cover until publishers upload real cover images. */
 export function BookCover({ product, index = 0, className }: { product: Product; index?: number; className?: string }) {

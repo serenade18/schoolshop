@@ -17,10 +17,10 @@ const perks = [
 ]
 
 const grades = [
-  { band: "pp", name: "PP1–PP2", sub: "Pre-primary", className: "bg-[#fde7c8]" },
-  { band: "1-3", name: "Grade 1–3", sub: "Lower primary", className: "bg-sun" },
-  { band: "4-6", name: "Grade 4–6", sub: "Upper primary", className: "bg-[#f26a21]" },
-  { band: "7-9", name: "Grade 7–9", sub: "Junior school", className: "bg-ink text-white" },
+  { band: "pp", name: "PP1–PP2", sub: "Pre-primary", className: "bg-orange-light" },
+  { band: "1-3", name: "Grade 1–3", sub: "Lower primary", className: "bg-teal-light" },
+  { band: "4-6", name: "Grade 4–6", sub: "Upper primary", className: "bg-orange" },
+  { band: "7-9", name: "Grade 7–9", sub: "Junior school", className: "bg-teal text-white" },
   { band: "all", name: "Stationery", sub: "Books, pens, sets", className: "bg-secondary" },
 ]
 
@@ -72,7 +72,7 @@ export function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-4 px-5 py-5.5 sm:grid-cols-3">
           {perks.map((p, i) => (
             <Reveal key={p.title} delay={i * 110} className="flex items-center gap-3">
-              <span className="pop-in flex size-10 shrink-0 items-center justify-center rounded-full bg-warn-bg" aria-hidden>
+              <span className="pop-in flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-light" aria-hidden>
                 <Check className="size-5 text-accent-text" />
               </span>
               <span className="flex flex-col">
@@ -100,7 +100,7 @@ export function HomePage() {
           ].map(({ title, body, to, Icon }, i) => (
             <Reveal key={title} fill delay={i * 70}>
               <Link to={to} className="lift flex min-h-36 flex-col gap-3 rounded-2xl border bg-surface p-4 hover:border-ink/40">
-                <span className="lift__icon flex size-10 items-center justify-center rounded-xl bg-warn-bg"><Icon className="size-5 text-accent-text" aria-hidden /></span>
+                <span className="lift__icon flex size-10 items-center justify-center rounded-xl bg-teal-light"><Icon className="size-5 text-accent-text" aria-hidden /></span>
                 <span className="font-semibold leading-tight">{title}</span>
                 <span className="text-sm text-muted-foreground">{body}</span>
               </Link>
@@ -144,7 +144,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="how-h" className="bg-ink text-white">
+      <section aria-labelledby="how-h" className="bg-teal text-white">
         <div className="mx-auto max-w-6xl px-5 py-16">
           <Reveal>
             <h2 id="how-h" className="mb-8 text-[clamp(26px,4vw,32px)] font-semibold">How it works</h2>
@@ -152,9 +152,9 @@ export function HomePage() {
           <ol className="grid gap-7 md:grid-cols-3">
             {steps.map((s, i) => (
               <Reveal as="li" key={s.title} delay={i * 140} className="flex flex-col gap-2.5">
-                <span className="pop-in font-display text-[44px] font-semibold text-sun">{i + 1}</span>
+                <span className="pop-in flex size-14 items-center justify-center rounded-full bg-sun font-display text-[26px] font-semibold text-ink">{i + 1}</span>
                 <span className="text-[19px] font-semibold">{s.title}</span>
-                <span className="leading-relaxed text-white/80">{s.body}</span>
+                <span className="leading-relaxed text-white/90">{s.body}</span>
               </Reveal>
             ))}
           </ol>
@@ -163,7 +163,7 @@ export function HomePage() {
 
       <section aria-label="For schools and publishers" className="mx-auto grid max-w-6xl gap-5 px-5 py-16 md:grid-cols-2">
         <Reveal from="left" fill>
-          <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-warn-bg p-8">
+          <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-teal-light p-8">
             <h2 className="text-[26px] font-semibold">For schools</h2>
             <p className="leading-relaxed text-ink/85">
               Publish each grade's booklist once. See who has ordered, receive one delivery per publisher and hand out
@@ -175,7 +175,7 @@ export function HomePage() {
           </div>
         </Reveal>
         <Reveal from="right" fill delay={120}>
-          <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-paper p-8">
+          <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-orange-light p-8">
             <h2 className="text-[26px] font-semibold">For publishers</h2>
             <p className="leading-relaxed text-ink/85">
               List your catalog once and get confirmed, prepaid orders grouped per school, with pick lists and payouts
@@ -206,7 +206,7 @@ function HeroListCard() {
         <span className="text-sm text-muted-foreground">6 items · Total</span>
         <span className="font-display text-xl font-semibold">KES 3,750</span>
       </div>
-      <div className="flex h-10 items-center justify-center rounded-xl bg-ink text-sm font-semibold text-white">Pay with M-Pesa</div>
+      <div className="flex h-10 items-center justify-center rounded-xl bg-teal text-sm font-semibold text-white">Pay with M-Pesa</div>
     </div>
   )
 }

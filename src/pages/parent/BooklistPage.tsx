@@ -43,8 +43,8 @@ export function BooklistPage() {
             />
             <div className="parent-split">
             <div className="flex flex-col gap-3">
-              <p className="flex items-start gap-2.5 rounded-xl bg-warn-bg p-3.5 text-sm leading-snug text-[#5c2208]">
-                <Info className="mt-0.5 size-4.5 shrink-0 text-warn-fg" aria-hidden />
+              <p className="flex items-start gap-2.5 rounded-xl bg-teal-light p-3.5 text-sm leading-snug text-ink">
+                <Info className="mt-0.5 size-4.5 shrink-0 text-accent-text" aria-hidden />
                 Set by the school. Untick anything {child?.name ?? "your child"} already has, and tick any optional extras you want.
               </p>
               <div className="flex items-baseline justify-between">

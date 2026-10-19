@@ -70,7 +70,7 @@ function ChildCard({ child }: { child: Child }) {
   return (
     <article className="flex flex-col gap-3.5 rounded-2xl border bg-card p-4.5">
       <div className="flex items-center gap-3">
-        <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#fde7c8] font-display text-lg font-semibold text-warn-fg">
+        <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-teal-light font-display text-lg font-semibold text-teal">
           {child.name[0]}
         </span>
         <div className="flex min-w-0 grow flex-col">
