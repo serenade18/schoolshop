@@ -1,13 +1,10 @@
-import { useState } from "react"
 import { Link } from "react-router"
 import { BookOpen, Check, GraduationCap, Library, PencilRuler, School, Search } from "lucide-react"
 
 import { GradientBar } from "@/components/common/GradientBar"
 import { ProductCard } from "@/components/common/ProductCard"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useProducts, useSchools } from "@/lib/api/queries"
+import { useProducts } from "@/lib/api/queries"
 import { cn } from "@/lib/utils"
 import heroImage from "@/assets/home/hero.webp"
 import "./hero.css"
@@ -43,18 +40,25 @@ export function HomePage() {
 
         <div className="hero__inner">
           <div className="hero__copy">
-            <span className="hero__eyebrow">Back to school, without the queues</span>
+            <span className="hero__eyebrow">Back to School. Without the Queues.</span>
             <h1 className="hero__title">
-              Your child's school list, <em>delivered at their school.</em>
+              Everything for School. <em>All in One Place.</em>
             </h1>
             <p className="hero__lead">
-              Find the school, pick the grade, pay with M-Pesa. The publishers deliver straight to the school and
-              your child collects their pack in class.
+              From textbooks and stationery to everyday school essentials, find everything your child needs in one
+              place. Shop by school, grade, or curriculum and enjoy a simpler, hassle-free back-to-school experience.
             </p>
-            <SchoolSearch />
-            <Link to="/shop" className="hero__link">
-              Or shop by grade without a school list
-            </Link>
+            <div className="hero__ctas">
+              <Link to="/schools" className="hero-btn hero-btn--primary">
+                Find My School
+              </Link>
+              <Link to="/shop?view=grade" className="hero-btn hero-btn--ghost">
+                Shop by Grade
+              </Link>
+              <Link to="/shop" className="hero-btn hero-btn--ghost">
+                Shop All
+              </Link>
+            </div>
           </div>
 
           <HeroListCard />
@@ -167,46 +171,6 @@ export function HomePage() {
         </div>
       </section>
     </>
-  )
-}
-
-function SchoolSearch() {
-  const [q, setQ] = useState("")
-  const schools = useSchools(q)
-  const results = q.trim().length >= 2 ? (schools.data?.results ?? []) : []
-
-  return (
-    <div className="hero-search relative flex max-w-[560px] flex-col gap-2" role="search">
-      <Label htmlFor="school-search" className="text-[15px]">Find your child's school</Label>
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input
-          id="school-search"
-          type="search"
-          autoComplete="off"
-          placeholder="School name or town"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="h-14 pl-11"
-          aria-controls="school-results"
-        />
-      </div>
-      {results.length > 0 && (
-        <ul id="school-results" className="absolute top-full z-10 mt-2 w-full overflow-hidden rounded-xl border bg-surface shadow-lg">
-          {results.map((s) => (
-            <li key={s.id}>
-              <Link to={`/schools/${s.slug}`} className="flex flex-col px-4 py-3 hover:bg-paper">
-                <span className="font-semibold">{s.name}</span>
-                <span className="text-sm text-muted-foreground">{s.town}, {s.county}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      {q.trim().length >= 2 && schools.isSuccess && results.length === 0 && (
-        <p className="text-sm">No school matches “{q}”. Ask your school to join SchoolShop.</p>
-      )}
-    </div>
   )
 }
 
