@@ -16,14 +16,6 @@ const perks = [
   { title: "The exact school list", body: "Set by the school, priced by publishers" },
 ]
 
-const grades = [
-  { band: "pp", name: "PP1–PP2", sub: "Pre-primary", className: "bg-orange-light" },
-  { band: "1-3", name: "Grade 1–3", sub: "Lower primary", className: "bg-teal-light" },
-  { band: "4-6", name: "Grade 4–6", sub: "Upper primary", className: "bg-orange" },
-  { band: "7-9", name: "Grade 7–9", sub: "Junior school", className: "bg-teal text-white" },
-  { band: "all", name: "Stationery", sub: "Books, pens, sets", className: "bg-secondary" },
-]
-
 const steps = [
   { title: "Find the school", body: "Search for your child's school and pick their grade. The list is the one the school published." },
   { title: "Pay with M-Pesa", body: "Untick what you already have and pay. You get an SMS receipt and a collection code." },
@@ -96,32 +88,12 @@ export function HomePage() {
             { title: "Shop by Curriculum", body: "CBE, IGCSE, IB", to: "/shop?view=curriculum", Icon: BookOpen },
             { title: "College & University", body: "Higher education", to: "/shop?category=college", Icon: Library },
             { title: "Stationery & Supplies", body: "Everyday essentials", to: "/shop?category=stationery", Icon: PencilRuler },
-            { title: "Shop All", body: "Explore all products", to: "/shop", Icon: Search },
           ].map(({ title, body, to, Icon }, i) => (
             <Reveal key={title} fill delay={i * 70}>
               <Link to={to} className="lift flex min-h-36 flex-col gap-3 rounded-2xl border bg-surface p-4 hover:border-ink/40">
                 <span className="lift__icon flex size-10 items-center justify-center rounded-xl bg-teal-light"><Icon className="size-5 text-accent-text" aria-hidden /></span>
                 <span className="font-semibold leading-tight">{title}</span>
                 <span className="text-sm text-muted-foreground">{body}</span>
-              </Link>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="grades-h" className="mx-auto max-w-6xl px-5 pt-16 pb-6">
-        <Reveal>
-          <h2 id="grades-h" className="mb-6 text-[clamp(26px,4vw,32px)] font-semibold">Shop by grade</h2>
-        </Reveal>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {grades.map((g, i) => (
-            <Reveal key={g.band} fill delay={i * 80}>
-              <Link
-                to={`/shop?grade=${g.band}`}
-                className={cn("lift flex min-h-28 flex-col justify-end gap-1.5 rounded-2xl p-4.5 text-ink", g.className)}
-              >
-                <span className="font-display text-[22px] font-semibold">{g.name}</span>
-                <span className="text-sm">{g.sub}</span>
               </Link>
             </Reveal>
           ))}

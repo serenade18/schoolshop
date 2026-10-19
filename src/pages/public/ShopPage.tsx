@@ -24,7 +24,6 @@ const shopPaths = [
   { label: "Shop by Curriculum", description: "CBE, IGCSE, IB and more", to: "/shop?view=curriculum", icon: BookOpen },
   { label: "College & University", description: "Books for higher education", to: "/shop?category=college", icon: Library },
   { label: "Stationery & Supplies", description: "Everyday learning essentials", to: "/shop?category=stationery", icon: PencilRuler },
-  { label: "Shop All", description: "Explore the full catalogue", to: "/shop", icon: Search },
 ]
 
 const curriculumNames: Record<string, string> = { cbe: "CBE (Kenya)", igcse: "IGCSE", ib: "International Baccalaureate (IB)" }
@@ -80,14 +79,14 @@ export function ShopPage() {
       </header>
 
       <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:gap-8">
-        <aside aria-label="Filters" className="flex w-full shrink-0 flex-col gap-6 lg:w-[250px]">
-          <nav aria-label="Shop categories" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+        <aside aria-label="Filters" className="flex w-full shrink-0 flex-col gap-4 lg:w-[250px]">
+          <nav aria-label="Shop categories" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1 lg:gap-0.5">
             {shopPaths.map((path) => {
               const Icon = path.icon
               const active = path.to === "/shop" ? category === "all" && view === "all" : path.to.includes("/schools") ? false : path.to.includes("view=grade") ? view === "grade" : path.to.includes("view=curriculum") ? view === "curriculum" : path.to.includes("college") ? category === "college" : category === "stationery"
               return (
-                <Link key={path.label} to={path.to} aria-current={active ? "page" : undefined} className={cn("flex min-h-28 flex-col gap-2 rounded-xl border p-3 transition-colors hover:border-ink/40 hover:bg-paper lg:min-h-0 lg:flex-row lg:items-start lg:gap-3", active && "border-ink bg-paper")}>
-                  <Icon className="size-5 shrink-0 text-accent-text" aria-hidden />
+                <Link key={path.label} to={path.to} aria-current={active ? "page" : undefined} className={cn("flex min-h-28 flex-col gap-2 rounded-xl border p-3 transition-colors hover:border-ink/40 hover:bg-paper lg:min-h-0 lg:flex-row lg:items-center lg:gap-2.5 lg:border-transparent lg:px-2.5 lg:py-2", active && "border-ink bg-paper lg:border-ink")}>
+                  <Icon className="size-5 shrink-0 text-accent-text lg:size-4.5" aria-hidden />
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="text-sm font-semibold leading-tight">{path.label}</span>
                     <span className="text-xs leading-snug text-muted-foreground">{path.description}</span>
@@ -100,7 +99,7 @@ export function ShopPage() {
           {view === "grade" && (
             <div className="flex flex-col gap-2">
               <label htmlFor="grade-filter" className="text-sm font-semibold">Learning level</label>
-              <NativeSelect id="grade-filter" value={grade} onChange={(e) => update("grade", e.target.value)}>
+              <NativeSelect className="h-10 text-sm" id="grade-filter" value={grade} onChange={(e) => update("grade", e.target.value)}>
                 {gradeBands.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               </NativeSelect>
             </div>
@@ -109,7 +108,7 @@ export function ShopPage() {
           {view === "curriculum" && (
             <div className="flex flex-col gap-2">
               <label htmlFor="curriculum-filter" className="text-sm font-semibold">Curriculum</label>
-              <NativeSelect id="curriculum-filter" value={curriculum} onChange={(e) => update("curriculum", e.target.value)}>
+              <NativeSelect className="h-10 text-sm" id="curriculum-filter" value={curriculum} onChange={(e) => update("curriculum", e.target.value)}>
                 <option value="cbe">CBE (Kenya)</option>
                 <option value="igcse">IGCSE</option>
                 <option value="ib">International Baccalaureate (IB)</option>
@@ -121,7 +120,7 @@ export function ShopPage() {
           {category === "stationery" && (
             <div className="flex flex-col gap-2">
               <label htmlFor="department-filter" className="text-sm font-semibold">Stationery department</label>
-              <NativeSelect id="department-filter" value={params.get("department") ?? ""} onChange={(e) => update("department", e.target.value)}>
+              <NativeSelect className="h-10 text-sm" id="department-filter" value={params.get("department") ?? ""} onChange={(e) => update("department", e.target.value)}>
                 <option value="">All stationery</option>
                 <option value="writing">Writing & exercise books</option>
                 <option value="maths">Maths & geometry</option>
@@ -130,20 +129,20 @@ export function ShopPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 lg:mt-1 lg:border-t lg:pt-4">
             <div className="relative w-full">
               <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input aria-label="Search products" value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search titles, subjects, publishers" className="pl-10" />
+              <Input aria-label="Search products" value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search titles, subjects, publishers" className="h-10 pl-10 text-sm md:text-sm" />
             </div>
-            <NativeSelect aria-label="Filter by subject" value={subject} onChange={(e) => update("subject", e.target.value)}>
+            <NativeSelect className="h-10 text-sm" aria-label="Filter by subject" value={subject} onChange={(e) => update("subject", e.target.value)}>
               <option value="">All subjects</option>
               {Array.from(new Set(products.data?.results.map((p) => p.subject) ?? [])).sort().map((name) => <option key={name} value={name}>{name}</option>)}
             </NativeSelect>
-            <NativeSelect aria-label="Filter by publisher" value={publisher} onChange={(e) => update("publisher", e.target.value)}>
+            <NativeSelect className="h-10 text-sm" aria-label="Filter by publisher" value={publisher} onChange={(e) => update("publisher", e.target.value)}>
               <option value="">All publishers</option>
               {Array.from(new Set(products.data?.results.map((p) => p.publisherName) ?? [])).sort().map((name) => <option key={name} value={name}>{name}</option>)}
             </NativeSelect>
-            <NativeSelect aria-label="Sort products" value={sort} onChange={(e) => update("sort", e.target.value)}>
+            <NativeSelect className="h-10 text-sm" aria-label="Sort products" value={sort} onChange={(e) => update("sort", e.target.value)}>
               <option value="popular">Most popular</option>
               <option value="price_asc">Price: low to high</option>
               <option value="price_desc">Price: high to low</option>
