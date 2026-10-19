@@ -14,6 +14,7 @@ import { ComingSoonPage } from "@/pages/ComingSoonPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { HomePage } from "@/pages/public/HomePage"
 import { SchoolPage } from "@/pages/public/SchoolPage"
+import { SchoolsPage } from "@/pages/public/SchoolsPage"
 import { ShopPage } from "@/pages/public/ShopPage"
 
 /** Route-level code splitting: each role's pages load only when visited. */
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "shop", element: <ShopPage /> },
+      { path: "schools", element: <SchoolsPage /> },
       { path: "shop/:productId", lazy: page(() => import("@/pages/public/ProductPage"), "ProductPage") },
       { path: "schools/:slug", element: <SchoolPage /> },
     ],

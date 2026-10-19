@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router"
-import { Check, Search } from "lucide-react"
+import { BookOpen, Check, GraduationCap, Library, PencilRuler, School, Search } from "lucide-react"
 
 import { GradientBar } from "@/components/common/GradientBar"
 import { ProductCard } from "@/components/common/ProductCard"
@@ -68,6 +68,29 @@ export function HomePage() {
                 <span className="text-sm text-muted-foreground">{p.body}</span>
               </span>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="shop-categories-h" className="mx-auto max-w-6xl px-5 pt-14 pb-2">
+        <div className="mb-6 max-w-2xl">
+          <h2 id="shop-categories-h" className="text-[clamp(26px,4vw,32px)] font-semibold">Shop your way</h2>
+          <p className="mt-2 text-ink/80">Find your school's approved list or browse our central catalogue by grade, curriculum or product type.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { title: "Shop by School", body: "Approved school lists", to: "/schools", Icon: School },
+            { title: "Shop by Grade", body: "Books by learning level", to: "/shop?view=grade", Icon: GraduationCap },
+            { title: "Shop by Curriculum", body: "CBE, IGCSE, IB", to: "/shop?view=curriculum", Icon: BookOpen },
+            { title: "College & University", body: "Higher education", to: "/shop?category=college", Icon: Library },
+            { title: "Stationery & Supplies", body: "Everyday essentials", to: "/shop?category=stationery", Icon: PencilRuler },
+            { title: "Shop All", body: "Explore all products", to: "/shop", Icon: Search },
+          ].map(({ title, body, to, Icon }) => (
+            <Link key={title} to={to} className="flex min-h-36 flex-col gap-3 rounded-2xl border p-4 transition-colors hover:border-ink/40 hover:bg-paper">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-warn-bg"><Icon className="size-5 text-accent-text" aria-hidden /></span>
+              <span className="font-semibold leading-tight">{title}</span>
+              <span className="text-sm text-muted-foreground">{body}</span>
+            </Link>
           ))}
         </div>
       </section>

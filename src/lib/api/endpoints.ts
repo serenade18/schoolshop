@@ -79,8 +79,8 @@ export const searchSchools = (search: string) =>
 export const getSchool = (slug: string) => get(`/schools/${slug}/`, schoolSchema)
 export const listSchoolBooklists = (slug: string) =>
   get(`/schools/${slug}/booklists/`, z.array(booklistSchema))
-export const listProducts = (gradeBand?: string) =>
-  get("/products/", paginated(productSchema), { gradeBand })
+export const listProducts = (filters: Record<string, string> = {}) =>
+  get("/products/", paginated(productSchema), filters)
 export const getProduct = (id: string) => get(`/products/${id}/`, productDetailSchema)
 
 // Parent

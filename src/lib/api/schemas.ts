@@ -188,6 +188,13 @@ export const productSchema = z.object({
   gradeBand: z.enum(["pp", "1-3", "4-6", "7-9", "all"]),
   priceCents: cents,
   schoolListCount: z.number().int().nonnegative(),
+  /** Optional catalogue facets; existing backend records remain valid while migrated. */
+  category: z.enum(["textbook", "reader", "reference", "revision", "stationery", "college"]).optional(),
+  curricula: z.array(z.string()).optional(),
+  audience: z.enum(["school", "college", "all"]).optional(),
+  department: z.string().optional(),
+  faculty: z.string().optional(),
+  gradeIds: z.array(z.string()).optional(),
 })
 export type Product = z.infer<typeof productSchema>
 

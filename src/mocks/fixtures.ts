@@ -159,14 +159,19 @@ export const children: Child[] = [
 ]
 
 export const products: Product[] = [
-  { id: "prd-g4-math", title: "Mathematics Activities Grade 4", publisherName: "Longhorn", subject: "Mathematics", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(650), schoolListCount: 38 },
-  { id: "prd-g4-eng", title: "English Activities Grade 4", publisherName: "KLB", subject: "English", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(620), schoolListCount: 31 },
-  { id: "prd-g4-kis", title: "Kiswahili Shughuli Gredi 4", publisherName: "Oxford", subject: "Kiswahili", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(640), schoolListCount: 29 },
-  { id: "prd-g7-sci", title: "Integrated Science Grade 7", publisherName: "Longhorn", subject: "Integrated Science", gradeLabel: "Grade 7", gradeBand: "7-9", priceCents: k(760), schoolListCount: 27 },
-  { id: "prd-g7-math", title: "Mathematics Grade 7", publisherName: "Longhorn", subject: "Mathematics", gradeLabel: "Grade 7", gradeBand: "7-9", priceCents: k(720), schoolListCount: 44 },
-  { id: "prd-g1-eng", title: "English Activities Grade 1", publisherName: "KLB", subject: "English", gradeLabel: "Grade 1", gradeBand: "1-3", priceCents: k(540), schoolListCount: 22 },
-  { id: "prd-pp2-lang", title: "Language Activities PP2", publisherName: "Moran", subject: "Language Activities", gradeLabel: "PP2", gradeBand: "pp", priceCents: k(480), schoolListCount: 15 },
-  { id: "prd-books", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", subject: "Exercise books", gradeLabel: "All grades", gradeBand: "all", priceCents: k(550), schoolListCount: 41 },
+  { id: "prd-g4-math", title: "Mathematics Activities Grade 4", publisherName: "Longhorn", subject: "Mathematics", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(650), schoolListCount: 38, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-g4-eng", title: "English Activities Grade 4", publisherName: "KLB", subject: "English", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(620), schoolListCount: 31, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-g4-kis", title: "Kiswahili Shughuli Gredi 4", publisherName: "Oxford", subject: "Kiswahili", gradeLabel: "Grade 4", gradeBand: "4-6", priceCents: k(640), schoolListCount: 29, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-g7-sci", title: "Integrated Science Grade 7", publisherName: "Longhorn", subject: "Integrated Science", gradeLabel: "Grade 7", gradeBand: "7-9", priceCents: k(760), schoolListCount: 27, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-g7-math", title: "Mathematics Grade 7", publisherName: "Longhorn", subject: "Mathematics", gradeLabel: "Grade 7", gradeBand: "7-9", priceCents: k(720), schoolListCount: 44, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-g1-eng", title: "English Activities Grade 1", publisherName: "KLB", subject: "English", gradeLabel: "Grade 1", gradeBand: "1-3", priceCents: k(540), schoolListCount: 22, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-pp2-lang", title: "Language Activities PP2", publisherName: "Moran", subject: "Language Activities", gradeLabel: "PP2", gradeBand: "pp", priceCents: k(480), schoolListCount: 15, category: "textbook", curricula: ["cbe"], audience: "school" },
+  { id: "prd-books", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", subject: "Exercise books", gradeLabel: "All grades", gradeBand: "all", priceCents: k(550), schoolListCount: 41, category: "stationery", audience: "all", department: "writing" },
+  { id: "prd-geometry", title: "Geometry set", publisherName: "Kasuku", subject: "Maths supplies", gradeLabel: "All grades", gradeBand: "all", priceCents: k(300), schoolListCount: 12, category: "stationery", audience: "all", department: "maths" },
+  { id: "prd-pencils", title: "HB pencils, pack of 12", publisherName: "Kasuku", subject: "Writing supplies", gradeLabel: "All grades", gradeBand: "all", priceCents: k(240), schoolListCount: 9, category: "stationery", audience: "all", department: "writing" },
+  { id: "prd-calculator", title: "Scientific calculator", publisherName: "Oxford", subject: "Calculators", gradeLabel: "Grade 7+", gradeBand: "7-9", priceCents: k(1450), schoolListCount: 4, category: "stationery", audience: "all", department: "maths" },
+  { id: "prd-college-business", title: "Introduction to Business Management", publisherName: "Oxford", subject: "Business Management", gradeLabel: "College", gradeBand: "all", priceCents: k(1850), schoolListCount: 0, category: "college", audience: "college", faculty: "business", curricula: [] },
+  { id: "prd-college-computing", title: "Foundations of Computing", publisherName: "Pearson", subject: "Computing & IT", gradeLabel: "College", gradeBand: "all", priceCents: k(2200), schoolListCount: 0, category: "college", audience: "college", faculty: "ict", curricula: [] },
 ]
 
 type ProductExtra = Pick<ProductDetail, "description" | "isbn" | "pages" | "format">
