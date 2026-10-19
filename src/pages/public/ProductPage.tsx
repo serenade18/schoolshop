@@ -64,7 +64,26 @@ function ProductDetailView({ product: p }: { product: ProductDetail }) {
 
       <div className="grid gap-x-12 gap-y-7 md:grid-cols-[minmax(0,4fr)_minmax(0,7fr)]">
         <div className="mx-auto w-full max-w-[240px] md:sticky md:top-6 md:max-w-none md:self-start">
-          <BookCover product={p} className="p-6 shadow-[0_24px_48px_-24px_rgb(20_20_20/0.35)] md:p-8 [&>span:last-child]:text-3xl" />
+          {p.imageUrl ? (
+            <>
+              <img
+                src={p.imageUrl}
+                alt={`Cover image for ${p.title}`}
+                loading="eager"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none"
+                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null
+                  if (fallback) fallback.style.display = "flex"
+                }}
+                className="aspect-[3/4] w-full rounded-2xl bg-paper object-cover shadow-[0_24px_48px_-24px_rgb(20_20_20/0.35)]"
+              />
+              <span style={{ display: "none" }}>
+                <BookCover product={p} className="p-6 shadow-[0_24px_48px_-24px_rgb(20_20_20/0.35)] md:p-8 [&>span:last-child]:text-3xl" />
+              </span>
+            </>
+          ) : (
+            <BookCover product={p} className="p-6 shadow-[0_24px_48px_-24px_rgb(20_20_20/0.35)] md:p-8 [&>span:last-child]:text-3xl" />
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">

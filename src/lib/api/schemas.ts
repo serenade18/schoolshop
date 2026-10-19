@@ -182,6 +182,8 @@ export type Payment = z.infer<typeof paymentSchema>
 export const productSchema = z.object({
   id: z.string(),
   title: z.string(),
+  /** Optional thumbnail used by mock fixtures and future publisher uploads. */
+  imageUrl: z.url().optional(),
   publisherName: z.string(),
   subject: z.string(),
   gradeLabel: z.string(),
