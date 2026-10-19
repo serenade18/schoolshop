@@ -1,9 +1,8 @@
-import type { ComponentProps } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { Link, useSearchParams } from "react-router"
-import { Check, ChevronDown } from "lucide-react"
+import { Check } from "lucide-react"
 import { z } from "zod"
 
 import { PasswordInput } from "@/components/auth/PasswordInput"
@@ -12,6 +11,7 @@ import { AuthHeading, AuthLayout } from "@/components/layout/AuthLayout"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/select"
 import { ApiError } from "@/lib/api/client"
 import { applyForOrganisation, type OrgApplicationInput } from "@/lib/api/endpoints"
 import { normaliseKenyanPhone } from "@/lib/format"
@@ -266,20 +266,3 @@ export function RegisterOrganisationPage() {
   )
 }
 
-function NativeSelect({ className, children, ...props }: ComponentProps<"select">) {
-  return (
-    <div className="relative">
-      <select
-        className={cn(
-          "h-12 w-full appearance-none rounded-xl border border-input bg-surface pr-10 pl-3.5 text-base outline-none",
-          "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 aria-invalid:border-destructive",
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2" aria-hidden />
-    </div>
-  )
-}

@@ -5,6 +5,7 @@ import { ProductCard } from "@/components/common/ProductCard"
 import { QueryBoundary } from "@/components/common/QueryBoundary"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/select"
 import { useProducts, type ProductFilters } from "@/lib/api/queries"
 import { cn } from "@/lib/utils"
 import { useCartStore } from "@/stores/cart"
@@ -99,20 +100,20 @@ export function ShopPage() {
           {view === "grade" && (
             <div className="flex flex-col gap-2">
               <label htmlFor="grade-filter" className="text-sm font-semibold">Learning level</label>
-              <select id="grade-filter" value={grade} onChange={(e) => update("grade", e.target.value)} className="h-11 w-full rounded-lg border bg-surface px-3 text-sm">
+              <NativeSelect id="grade-filter" value={grade} onChange={(e) => update("grade", e.target.value)}>
                 {gradeBands.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
+              </NativeSelect>
             </div>
           )}
 
           {view === "curriculum" && (
             <div className="flex flex-col gap-2">
               <label htmlFor="curriculum-filter" className="text-sm font-semibold">Curriculum</label>
-              <select id="curriculum-filter" value={curriculum} onChange={(e) => update("curriculum", e.target.value)} className="h-11 w-full rounded-lg border bg-surface px-3 text-sm">
+              <NativeSelect id="curriculum-filter" value={curriculum} onChange={(e) => update("curriculum", e.target.value)}>
                 <option value="cbe">CBE (Kenya)</option>
                 <option value="igcse">IGCSE</option>
                 <option value="ib">International Baccalaureate (IB)</option>
-              </select>
+              </NativeSelect>
               <p className="text-sm text-muted-foreground">Selected: {curriculumLabel}. Results depend on the curricula assigned to products in the catalogue.</p>
             </div>
           )}
@@ -120,34 +121,34 @@ export function ShopPage() {
           {category === "stationery" && (
             <div className="flex flex-col gap-2">
               <label htmlFor="department-filter" className="text-sm font-semibold">Stationery department</label>
-              <select id="department-filter" value={params.get("department") ?? ""} onChange={(e) => update("department", e.target.value)} className="h-11 w-full rounded-lg border bg-surface px-3 text-sm">
+              <NativeSelect id="department-filter" value={params.get("department") ?? ""} onChange={(e) => update("department", e.target.value)}>
                 <option value="">All stationery</option>
                 <option value="writing">Writing & exercise books</option>
                 <option value="maths">Maths & geometry</option>
                 <option value="art">Art supplies</option>
-              </select>
+              </NativeSelect>
             </div>
           )}
 
           <div className="flex flex-col gap-2">
             <div className="relative w-full">
               <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input aria-label="Search products" value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search titles, subjects, publishers" className="h-11 pl-10" />
+              <Input aria-label="Search products" value={search} onChange={(e) => update("search", e.target.value)} placeholder="Search titles, subjects, publishers" className="pl-10" />
             </div>
-            <select aria-label="Filter by subject" value={subject} onChange={(e) => update("subject", e.target.value)} className="h-11 w-full rounded-lg border bg-surface px-3 text-sm">
+            <NativeSelect aria-label="Filter by subject" value={subject} onChange={(e) => update("subject", e.target.value)}>
               <option value="">All subjects</option>
               {Array.from(new Set(products.data?.results.map((p) => p.subject) ?? [])).sort().map((name) => <option key={name} value={name}>{name}</option>)}
-            </select>
-            <select aria-label="Filter by publisher" value={publisher} onChange={(e) => update("publisher", e.target.value)} className="h-11 w-full rounded-lg border bg-surface px-3 text-sm">
+            </NativeSelect>
+            <NativeSelect aria-label="Filter by publisher" value={publisher} onChange={(e) => update("publisher", e.target.value)}>
               <option value="">All publishers</option>
               {Array.from(new Set(products.data?.results.map((p) => p.publisherName) ?? [])).sort().map((name) => <option key={name} value={name}>{name}</option>)}
-            </select>
-            <select aria-label="Sort products" value={sort} onChange={(e) => update("sort", e.target.value)} className="h-11 w-full rounded-lg border bg-surface px-3 text-sm">
+            </NativeSelect>
+            <NativeSelect aria-label="Sort products" value={sort} onChange={(e) => update("sort", e.target.value)}>
               <option value="popular">Most popular</option>
               <option value="price_asc">Price: low to high</option>
               <option value="price_desc">Price: high to low</option>
               <option value="title">Name: A–Z</option>
-            </select>
+            </NativeSelect>
           </div>
 
           {view === "all" && category === "all" && !search && (
