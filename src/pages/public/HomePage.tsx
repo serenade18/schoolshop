@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts, useSchools } from "@/lib/api/queries"
 import { cn } from "@/lib/utils"
+import heroImage from "@/assets/home/hero.webp"
+import "./hero.css"
 
 const perks = [
   { title: "M-Pesa or card", body: "Pay in one step from your phone" },
@@ -34,26 +36,30 @@ export function HomePage() {
   const products = useProducts()
   return (
     <>
-      <section className="bg-paper">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-12 px-5 py-16 md:py-20">
-          <div className="flex min-w-0 grow basis-[480px] flex-col gap-5">
-            <span className="text-sm font-bold tracking-[0.08em] text-accent-text uppercase">
-              Back to school, without the queues
-            </span>
-            <h1 className="text-[clamp(36px,5vw,60px)] leading-[1.05] font-semibold tracking-tight">
-              Your child's school list, delivered to school.
+      <section className="hero">
+        <img className="hero__bg" src={heroImage} alt="" aria-hidden width={828} height={552} fetchPriority="high" decoding="async" />
+        <div className="hero__scrim" aria-hidden />
+        <div className="hero__glow" aria-hidden />
+
+        <div className="hero__inner">
+          <div className="hero__copy">
+            <span className="hero__eyebrow">Back to school, without the queues</span>
+            <h1 className="hero__title">
+              Your child's school list, <em>delivered at their school.</em>
             </h1>
-            <p className="max-w-[520px] text-lg leading-relaxed text-ink/85">
+            <p className="hero__lead">
               Find the school, pick the grade, pay with M-Pesa. The publishers deliver straight to the school and
               your child collects their pack in class.
             </p>
             <SchoolSearch />
-            <Link to="/shop" className="self-start py-2 text-[15px] font-semibold text-accent-text hover:underline">
+            <Link to="/shop" className="hero__link">
               Or shop by grade without a school list
             </Link>
           </div>
+
           <HeroListCard />
         </div>
+        <div className="hero__bar" aria-hidden />
       </section>
 
       <section aria-label="Why SchoolShop" className="border-b">
@@ -170,7 +176,7 @@ function SchoolSearch() {
   const results = q.trim().length >= 2 ? (schools.data?.results ?? []) : []
 
   return (
-    <div className="relative flex max-w-[560px] flex-col gap-2" role="search">
+    <div className="hero-search relative flex max-w-[560px] flex-col gap-2" role="search">
       <Label htmlFor="school-search" className="text-[15px]">Find your child's school</Label>
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -198,7 +204,7 @@ function SchoolSearch() {
         </ul>
       )}
       {q.trim().length >= 2 && schools.isSuccess && results.length === 0 && (
-        <p className="text-sm text-muted-foreground">No school matches “{q}”. Ask your school to join SchoolShop.</p>
+        <p className="text-sm">No school matches “{q}”. Ask your school to join SchoolShop.</p>
       )}
     </div>
   )
@@ -206,38 +212,20 @@ function SchoolSearch() {
 
 function HeroListCard() {
   return (
-    <div aria-hidden className="flex min-w-0 grow basis-[360px] justify-center">
-      <div className="flex w-full max-w-[400px] flex-col gap-3.5 rounded-3xl border bg-surface p-5.5 shadow-[0_24px_48px_-24px_rgba(20,20,20,0.25)]">
-        <div className="flex items-center justify-between">
-          <span className="flex flex-col">
-            <span className="font-display text-lg font-semibold">Grade 4 · Term 1</span>
-            <span className="text-sm text-muted-foreground">Greenhill Academy</span>
-          </span>
-          <span className="rounded-full bg-warn-bg px-2.5 py-1 text-xs font-bold text-warn-fg">List ready</span>
-        </div>
-        <GradientBar value={1} className="h-1" />
-        <div className="flex flex-col gap-2.5 text-[15px]">
-          <Row label="Mathematics Activities" value="KES 650" />
-          <Row label="English Activities" value="KES 620" />
-          <Row label="Kiswahili Shughuli" value="KES 640" />
-          <Row label="+ 3 more required items" value="KES 1,840" muted />
-        </div>
-        <div className="h-px bg-border" />
-        <div className="flex items-baseline justify-between">
-          <span className="text-muted-foreground">Total</span>
-          <span className="font-display text-2xl font-semibold">KES 3,750</span>
-        </div>
-        <div className="flex h-12 items-center justify-center rounded-xl bg-ink font-semibold text-white">Pay with M-Pesa</div>
+    <div aria-hidden className="hero-card">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex flex-col">
+          <span className="font-display text-base font-semibold">Grade 4 · Term 1</span>
+          <span className="text-xs text-muted-foreground">Greenhill Academy</span>
+        </span>
+        <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-bold text-warn-fg">List ready</span>
       </div>
-    </div>
-  )
-}
-
-function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
-  return (
-    <div className={cn("flex justify-between", muted && "text-muted-foreground")}>
-      <span>{label}</span>
-      <span className={cn(!muted && "font-semibold")}>{value}</span>
+      <GradientBar value={1} className="h-1" />
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm text-muted-foreground">6 items · Total</span>
+        <span className="font-display text-xl font-semibold">KES 3,750</span>
+      </div>
+      <div className="flex h-10 items-center justify-center rounded-xl bg-ink text-sm font-semibold text-white">Pay with M-Pesa</div>
     </div>
   )
 }
