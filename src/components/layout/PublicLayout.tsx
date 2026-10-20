@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { Link, NavLink, Outlet, useLocation } from "react-router"
-import { Menu, ShoppingCart, X } from "lucide-react"
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router"
+import { Menu, Search, ShoppingCart, X } from "lucide-react"
 
 import { Logo } from "@/components/brand/Logo"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { homeForRole, useAuthStore } from "@/stores/auth"
 import { useCartStore } from "@/stores/cart"
@@ -42,7 +43,7 @@ export function PublicLayout() {
           <Link to="/" aria-label="SchoolShop home" className="flex shrink-0">
             <Logo label="" className="h-6 md:h-7" />
           </Link>
-          <nav aria-label="Main" className="hidden grow gap-1 lg:flex">
+          <nav aria-label="Main" className="hidden gap-1 lg:flex">
             {links.map((l) => (
               <NavLink
                 key={l.to}
@@ -58,6 +59,7 @@ export function PublicLayout() {
               </NavLink>
             ))}
           </nav>
+          <HeaderSearch id="header-search" className="hidden max-w-md grow lg:block" />
           <div className="ml-auto flex items-center gap-2 md:gap-2.5">
             <div className="hidden sm:block">{account}</div>
             <Button asChild aria-label={extrasCount ? `Cart, ${extrasCount} items` : "Cart"} className="relative">
@@ -82,6 +84,9 @@ export function PublicLayout() {
               {menuOpen ? <X className="size-5.5" aria-hidden /> : <Menu className="size-5.5" aria-hidden />}
             </Button>
           </div>
+        </div>
+        <div className="px-5 pb-3 lg:hidden">
+          <HeaderSearch id="header-search-mobile" />
         </div>
         {menuOpen && (
           <div id="public-menu" className="menu-enter border-t bg-surface px-5 pt-2 pb-5 lg:hidden">
@@ -126,5 +131,33 @@ export function PublicLayout() {
         </div>
       </footer>
     </div>
+  )
+}
+
+/** Product search, always in the header. Submitting opens the Shop page filtered by the text. */
+function HeaderSearch({ id, className }: { id: string; className?: string }) {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [params] = useSearchParams()
+  // On the Shop page, show the active search so it can be edited or cleared.
+  const current = pathname === "/shop" ? (params.get("search") ?? "") : ""
+  return (
+    <form
+      role="search"
+      className={cn("relative", className)}
+      onSubmit={(e) => {
+        e.preventDefault()
+        const text = String(new FormData(e.currentTarget).get("search") ?? "").trim()
+        const next = new URLSearchParams(pathname === "/shop" ? params : undefined)
+        if (text) next.set("search", text)
+        else next.delete("search")
+        const qs = next.toString()
+        navigate(qs ? `/shop?${qs}` : "/shop")
+      }}
+    >
+      <label htmlFor={id} className="sr-only">Search products</label>
+      <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+      <Input key={current} id={id} name="search" type="search" defaultValue={current} autoComplete="off" enterKeyHint="search" placeholder="Search titles, subjects, publishers" className="h-10 rounded-full pl-10 text-sm md:text-sm" />
+    </form>
   )
 }
