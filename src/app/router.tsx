@@ -63,6 +63,8 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "shop", element: <ShopPage /> },
       { path: "schools", element: <SchoolsPage /> },
+      { path: "for-schools", lazy: page(() => import("@/pages/public/ForSchoolsPage"), "ForSchoolsPage") },
+      { path: "for-publishers", lazy: page(() => import("@/pages/public/ForPublishersPage"), "ForPublishersPage") },
       { path: "shop/:productId", lazy: page(() => import("@/pages/public/ProductPage"), "ProductPage") },
       { path: "schools/:slug", element: <SchoolPage /> },
     ],
@@ -107,7 +109,13 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout nav={publisherNav} tone="dark" tag="PUBLISHER" />,
-        children: [{ index: true, lazy: page(() => import("@/pages/publisher/PublisherOrdersPage"), "PublisherOrdersPage") }, ...comingSoon(publisherNav, "/publisher")],
+        children: [
+          { index: true, lazy: page(() => import("@/pages/publisher/PublisherOrdersPage"), "PublisherOrdersPage") },
+          { path: "catalog", lazy: page(() => import("@/pages/publisher/PublisherCatalogPage"), "PublisherCatalogPage") },
+          { path: "dispatches", lazy: page(() => import("@/pages/publisher/PublisherDispatchesPage"), "PublisherDispatchesPage") },
+          { path: "payouts", lazy: page(() => import("@/pages/publisher/PublisherPayoutsPage"), "PublisherPayoutsPage") },
+          { path: "settings", lazy: page(() => import("@/pages/publisher/PublisherSettingsPage"), "PublisherSettingsPage") },
+        ],
       },
     ],
   },

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
+import type { PublisherSettings } from "@/lib/api/schemas"
 
 export const queryKeys = {
   me: ["me"] as const,
@@ -17,6 +18,9 @@ export const queryKeys = {
   schoolOverview: ["school-overview"] as const,
   myBooklists: ["school-booklists"] as const,
   publisherBatches: ["publisher-batches"] as const,
+  catalog: ["publisher-catalog"] as const,
+  payouts: ["publisher-payouts"] as const,
+  settings: ["publisher-settings"] as const,
   adminOverview: ["admin-overview"] as const,
 }
 
@@ -119,3 +123,45 @@ export const usePublisherBatches = () =>
 
 export const useAdminOverview = () =>
   useQuery({ queryKey: queryKeys.adminOverview, queryFn: endpoints.getAdminOverview })
+
+export const useCatalog = () => useQuery({ queryKey: queryKeys.catalog, queryFn: endpoints.listCatalog })
+
+/** Create a title (no id) or update one (with id); refreshes the catalog either way. */
+export const useSaveCatalogItem = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: endpoints.CatalogItemInput }) =>
+      id ? endpoints.updateCatalogItem(id, input) : endpoints.createCatalogItem(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }),
+  })
+}
+
+export const useDispatchBatch = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: endpoints.DispatchInput }) => endpoints.dispatchBatch(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.publisherBatches }),
+  })
+}
+
+export const usePublisherPayouts = () =>
+  useQuery({ queryKey: queryKeys.payouts, queryFn: endpoints.getPublisherPayouts })
+
+export const useUpdatePayoutAccount = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.updatePayoutAccount,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.payouts }),
+  })
+}
+
+export const usePublisherSettings = () =>
+  useQuery({ queryKey: queryKeys.settings, queryFn: endpoints.getPublisherSettings })
+
+/** Wraps a settings call that returns the whole settings object, and caches the result. */
+export function useSettingsMutation<V>(fn: (vars: V) => Promise<PublisherSettings>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: (data) => qc.setQueryData(queryKeys.settings, data) })
+}
+
+export const useChangePassword = () => useMutation({ mutationFn: endpoints.changePassword })

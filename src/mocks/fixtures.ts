@@ -1,9 +1,12 @@
 import type {
   AdminOverview,
   Booklist,
+  CatalogItem,
   Child,
   Order,
   Product,
+  PublisherPayouts,
+  PublisherSettings,
   ProductDetail,
   School,
   SchoolBatch,
@@ -224,18 +227,85 @@ export const schoolOverview: SchoolOverview = {
   ],
 }
 
-export const publisherBatches: SchoolBatch[] = [
-  { id: "bt-1", schoolName: "Greenhill Academy", town: "Nakuru", packs: 312, valueCents: k(187200), dueAtSchool: "2027-01-20", status: "ready_to_pack", collectingUntil: null,
-    lines: [{ title: "Mathematics Activities Grade 4", qty: 63 }, { title: "Social Studies Grade 4", qty: 63 }, { title: "Mathematics Grade 7", qty: 150 }, { title: "Integrated Science Grade 7", qty: 150 }] },
-  { id: "bt-2", schoolName: "St. Mary's Primary", town: "Eldoret", packs: 204, valueCents: k(118300), dueAtSchool: "2027-01-18", status: "ready_to_pack", collectingUntil: null,
-    lines: [{ title: "Mathematics Activities Grade 1", qty: 88 }, { title: "English Activities Grade 1", qty: 88 }, { title: "Social Studies Grade 4", qty: 116 }] },
-  { id: "bt-3", schoolName: "Riverside Junior School", town: "Kisumu", packs: 178, valueCents: k(107100), dueAtSchool: "2027-01-22", status: "ready_to_pack", collectingUntil: null,
-    lines: [{ title: "Mathematics Grade 7", qty: 178 }, { title: "Pre-Technical Studies Grade 7", qty: 178 }] },
-  { id: "bt-4", schoolName: "Kilimani Primary", town: "Nairobi", packs: 96, valueCents: k(52800), dueAtSchool: "2027-01-24", status: "collecting", collectingUntil: "2027-01-12",
-    lines: [{ title: "Mathematics Activities Grade 4", qty: 96 }] },
-  { id: "bt-5", schoolName: "Hillcrest Prep", town: "Nyeri", packs: 140, valueCents: k(84000), dueAtSchool: "2027-01-09", status: "dispatched", collectingUntil: null,
-    lines: [{ title: "Mathematics Activities Grade 4", qty: 70 }, { title: "Social Studies Grade 4", qty: 70 }] },
+/** Longhorn's own catalog, as the demo publisher sees it. */
+export const publisherCatalog: CatalogItem[] = [
+  { id: "cat-g4-math", title: "Mathematics Activities Grade 4", subject: "Mathematics", gradeLabel: "Grade 4", gradeBand: "4-6", isbn: "978-9966-36-412-8", format: "Paperback, A4", priceCents: k(650), stock: 1240, lowStockAt: 200, status: "live", schoolListCount: 38 },
+  { id: "cat-g4-sst", title: "Social Studies Grade 4", subject: "Social Studies", gradeLabel: "Grade 4", gradeBand: "4-6", isbn: "978-9966-36-418-0", format: "Paperback, A4", priceCents: k(600), stock: 140, lowStockAt: 200, status: "live", schoolListCount: 26 },
+  { id: "cat-g7-math", title: "Mathematics Grade 7", subject: "Mathematics", gradeLabel: "Grade 7", gradeBand: "7-9", isbn: "978-9966-36-640-5", format: "Paperback, A4", priceCents: k(720), stock: 2100, lowStockAt: 300, status: "live", schoolListCount: 44 },
+  { id: "cat-g7-sci", title: "Integrated Science Grade 7", subject: "Integrated Science", gradeLabel: "Grade 7", gradeBand: "7-9", isbn: "978-9966-36-655-9", format: "Paperback, A4", priceCents: k(760), stock: 0, lowStockAt: 300, status: "live", schoolListCount: 27 },
+  { id: "cat-g7-pts", title: "Pre-Technical Studies Grade 7", subject: "Pre-Technical Studies", gradeLabel: "Grade 7", gradeBand: "7-9", isbn: "978-9966-36-662-7", format: "Paperback, A4", priceCents: k(690), stock: 880, lowStockAt: 200, status: "live", schoolListCount: 12 },
+  { id: "cat-g1-math", title: "Mathematics Activities Grade 1", subject: "Mathematics", gradeLabel: "Grade 1", gradeBand: "1-3", isbn: "978-9966-36-301-5", format: "Paperback, A4", priceCents: k(520), stock: 95, lowStockAt: 150, status: "live", schoolListCount: 19 },
+  { id: "cat-g8-math", title: "Mathematics Grade 8", subject: "Mathematics", gradeLabel: "Grade 8", gradeBand: "7-9", isbn: null, format: "Paperback, A4", priceCents: k(740), stock: 0, lowStockAt: 300, status: "draft", schoolListCount: 0 },
 ]
+
+export const publisherBatches: SchoolBatch[] = [
+  { id: "bt-1", schoolName: "Greenhill Academy", town: "Nakuru", packs: 312, valueCents: k(187200), dueAtSchool: "2027-01-20", status: "ready_to_pack", collectingUntil: null, unavailableLines: [], dispatch: null, receipt: null,
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 63 }, { title: "Social Studies Grade 4", qty: 63 }, { title: "Mathematics Grade 7", qty: 150 }, { title: "Integrated Science Grade 7", qty: 150 }] },
+  { id: "bt-2", schoolName: "St. Mary's Primary", town: "Eldoret", packs: 204, valueCents: k(118300), dueAtSchool: "2027-01-18", status: "ready_to_pack", collectingUntil: null, unavailableLines: [], dispatch: null, receipt: null,
+    lines: [{ title: "Mathematics Activities Grade 1", qty: 88 }, { title: "English Activities Grade 1", qty: 88 }, { title: "Social Studies Grade 4", qty: 116 }] },
+  { id: "bt-3", schoolName: "Riverside Junior School", town: "Kisumu", packs: 178, valueCents: k(107100), dueAtSchool: "2027-01-22", status: "ready_to_pack", collectingUntil: null, unavailableLines: [], dispatch: null, receipt: null,
+    lines: [{ title: "Mathematics Grade 7", qty: 178 }, { title: "Pre-Technical Studies Grade 7", qty: 178 }] },
+  { id: "bt-4", schoolName: "Kilimani Primary", town: "Nairobi", packs: 96, valueCents: k(52800), dueAtSchool: "2027-01-24", status: "collecting", collectingUntil: "2027-01-12", unavailableLines: [], dispatch: null, receipt: null,
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 96 }] },
+  { id: "bt-5", schoolName: "Hillcrest Prep", town: "Nyeri", packs: 140, valueCents: k(84000), dueAtSchool: "2027-01-09", status: "dispatched", collectingUntil: null, unavailableLines: [], receipt: null,
+    dispatch: { deliveryNoteNo: "DN-1042", carrier: "Own vehicle", driverName: "Joseph Mwangi", driverPhone: "254711222333", vehicleReg: "KDA 412K", cartons: 18, dispatchedAt: "2027-01-07T07:30:00+03:00", expectedAt: "2027-01-08" },
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 70 }, { title: "Social Studies Grade 4", qty: 70 }] },
+  { id: "bt-6", schoolName: "Sunrise Academy", town: "Machakos", packs: 120, valueCents: k(73200), dueAtSchool: "2027-01-08", status: "received", collectingUntil: null, unavailableLines: [],
+    dispatch: { deliveryNoteNo: "DN-1038", carrier: "G4S Courier", driverName: "Kevin Otieno", driverPhone: "254722444555", vehicleReg: "KCZ 908T", cartons: 15, dispatchedAt: "2027-01-05T08:10:00+03:00", expectedAt: "2027-01-06" },
+    receipt: { receivedAt: "2027-01-06T11:20:00+03:00", receivedBy: "Mary Wanjiku, deputy head", issue: "6 packs short: Social Studies Grade 4", payout: "queued" },
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 60 }, { title: "Social Studies Grade 4", qty: 60 }] },
+  { id: "bt-7", schoolName: "Lakeview Primary", town: "Naivasha", packs: 88, valueCents: k(57200), dueAtSchool: "2027-01-07", status: "received", collectingUntil: null, unavailableLines: ["Pre-Technical Studies Grade 7"],
+    dispatch: { deliveryNoteNo: "DN-1031", carrier: "Own vehicle", driverName: "Joseph Mwangi", driverPhone: "254711222333", vehicleReg: "KDA 412K", cartons: 11, dispatchedAt: "2027-01-04T07:45:00+03:00", expectedAt: "2027-01-04" },
+    receipt: { receivedAt: "2027-01-04T14:05:00+03:00", receivedBy: "Daniel Kiprop, head teacher", issue: null, payout: "paid" },
+    lines: [{ title: "Mathematics Grade 7", qty: 88 }, { title: "Pre-Technical Studies Grade 7", qty: 88 }] },
+]
+
+/** Commission rate used by the mock only; the real rate is agreed per publisher. */
+const DEMO_COMMISSION = 0.08
+const payout = (p: Omit<PublisherPayouts["payouts"][number], "commissionCents" | "netCents">) => {
+  const commissionCents = Math.round(p.grossCents * DEMO_COMMISSION)
+  return { ...p, commissionCents, netCents: p.grossCents - commissionCents - p.deductionsCents }
+}
+
+export const publisherPayouts: PublisherPayouts = {
+  commissionRate: DEMO_COMMISSION,
+  account: { method: "mpesa_paybill", accountName: "Longhorn Publishers Ltd", masked: "Paybill 522 *** 11 · Account LONGHORN", status: "verified" },
+  payouts: [
+    payout({ id: "po-7", termName: "Term 1, 2027", schoolName: "Hillcrest Prep", town: "Nyeri", deliveryNoteNo: "DN-1042", receivedAt: null, grossCents: k(84000), deductionsCents: 0, deductionNote: null, status: "held", paidAt: null, reference: null }),
+    payout({ id: "po-6", termName: "Term 1, 2027", schoolName: "Sunrise Academy", town: "Machakos", deliveryNoteNo: "DN-1038", receivedAt: "2027-01-06T11:20:00+03:00", grossCents: k(73200), deductionsCents: k(3600), deductionNote: "6 packs short: Social Studies Grade 4, refunded to parents", status: "on_hold", paidAt: null, reference: null }),
+    payout({ id: "po-5", termName: "Term 1, 2027", schoolName: "Kitale Hills School", town: "Kitale", deliveryNoteNo: "DN-1035", receivedAt: "2027-01-05T15:40:00+03:00", grossCents: k(66000), deductionsCents: 0, deductionNote: null, status: "queued", paidAt: null, reference: null }),
+    payout({ id: "po-4", termName: "Term 1, 2027", schoolName: "Lakeview Primary", town: "Naivasha", deliveryNoteNo: "DN-1031", receivedAt: "2027-01-04T14:05:00+03:00", grossCents: k(57200), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2027-01-05T10:00:00+03:00", reference: "QBR7X2K9LM" }),
+    payout({ id: "po-3", termName: "Term 3, 2026", schoolName: "Greenhill Academy", town: "Nakuru", deliveryNoteNo: "DN-0988", receivedAt: "2026-09-08T09:30:00+03:00", grossCents: k(142500), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2026-09-10T10:00:00+03:00", reference: "QIH4M8T2PA" }),
+    payout({ id: "po-2", termName: "Term 3, 2026", schoolName: "St. Mary's Primary", town: "Eldoret", deliveryNoteNo: "DN-0979", receivedAt: "2026-09-06T12:10:00+03:00", grossCents: k(96800), deductionsCents: k(1240), deductionNote: "2 copies damaged: Mathematics Activities Grade 1, refunded to parents", status: "paid", paidAt: "2026-09-08T10:00:00+03:00", reference: "QIF2L7R5WD" }),
+    payout({ id: "po-1", termName: "Term 3, 2026", schoolName: "Kilimani Primary", town: "Nairobi", deliveryNoteNo: "DN-0971", receivedAt: "2026-09-03T08:45:00+03:00", grossCents: k(41250), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2026-09-05T10:00:00+03:00", reference: "QIC9P3D6NE" }),
+  ],
+}
+
+export const publisherSettings: PublisherSettings = {
+  profile: {
+    companyName: "Longhorn Publishers Ltd",
+    kraPin: "P051234567X",
+    verifiedAt: "2026-08-14T10:00:00+03:00",
+    contactName: "Peter Kamau",
+    phone: "254700000444",
+    email: "orders@longhorn.co.ke",
+    dispatchAddress: "Funzi Road, Industrial Area, Nairobi",
+    county: "Nairobi",
+  },
+  team: [
+    { id: "tm-1", name: "Peter Kamau", contact: "254700000444", role: "admin", status: "active", isYou: true },
+    { id: "tm-2", name: "Joseph Mwangi", contact: "254711222333", role: "warehouse", status: "active", isYou: false },
+    { id: "tm-3", name: "Ann Njeri", contact: "ann.njeri@longhorn.co.ke", role: "finance", status: "active", isYou: false },
+    { id: "tm-4", name: "Brian Otieno", contact: "254733111222", role: "warehouse", status: "invited", isYou: false },
+  ],
+  notifications: {
+    batch_ready: { sms: true, email: true },
+    delivery_issue: { sms: true, email: true },
+    payout_sent: { sms: false, email: true },
+    low_stock: { sms: false, email: true },
+    weekly_summary: { sms: false, email: true },
+  },
+}
 
 export const adminOverview: AdminOverview = {
   termName: "Term 1, 2027",

@@ -212,6 +212,26 @@ export const productDetailSchema = productSchema.extend({
 })
 export type ProductDetail = z.infer<typeof productDetailSchema>
 
+export const gradeBandSchema = z.enum(["pp", "1-3", "4-6", "7-9", "all"])
+
+/** A title in a publisher's own catalog, with stock. Parents see it as a Product. */
+export const catalogItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  subject: z.string(),
+  gradeLabel: z.string(),
+  gradeBand: gradeBandSchema,
+  isbn: z.string().nullable(),
+  format: z.string(),
+  priceCents: cents,
+  stock: z.number().int().nonnegative(),
+  /** At or below this, the title shows as low stock. */
+  lowStockAt: z.number().int().nonnegative(),
+  status: z.enum(["live", "draft"]),
+  schoolListCount: z.number().int().nonnegative(),
+})
+export type CatalogItem = z.infer<typeof catalogItemSchema>
+
 export const schoolOverviewSchema = z.object({
   schoolName: z.string(),
   termName: z.string(),
@@ -246,8 +266,104 @@ export const schoolBatchSchema = z.object({
   status: shipmentStatusSchema,
   collectingUntil: isoDate.nullable(),
   lines: z.array(z.object({ title: z.string(), qty: z.number().int() })),
+  /** Titles the publisher could not supply; parents are refunded for these lines. */
+  unavailableLines: z.array(z.string()).default([]),
+  dispatch: z
+    .object({
+      deliveryNoteNo: z.string(),
+      carrier: z.string(),
+      driverName: z.string(),
+      driverPhone: z.string(),
+      vehicleReg: z.string(),
+      cartons: z.number().int().positive(),
+      dispatchedAt: isoDateTime,
+      expectedAt: isoDate,
+    })
+    .nullable()
+    .default(null),
+  receipt: z
+    .object({
+      receivedAt: isoDateTime,
+      receivedBy: z.string(),
+      /** What the school flagged on receipt, e.g. a short delivery. */
+      issue: z.string().nullable(),
+      payout: z.enum(["queued", "paid"]),
+    })
+    .nullable()
+    .default(null),
 })
 export type SchoolBatch = z.infer<typeof schoolBatchSchema>
+
+export const payoutAccountSchema = z.object({
+  method: z.enum(["mpesa_paybill", "mpesa_till", "bank"]),
+  accountName: z.string(),
+  /** Display string with the number partly hidden, e.g. "Paybill 522 *** 11 · Account LONGHORN". */
+  masked: z.string(),
+  status: z.enum(["verified", "pending_verification"]),
+})
+export type PayoutAccount = z.infer<typeof payoutAccountSchema>
+
+export const payoutSchema = z.object({
+  id: z.string(),
+  termName: z.string(),
+  schoolName: z.string(),
+  town: z.string(),
+  deliveryNoteNo: z.string(),
+  /** When the school confirmed the delivery; null while it's still on the way. */
+  receivedAt: isoDateTime.nullable(),
+  grossCents: cents,
+  commissionCents: cents,
+  /** Refunds taken off before payout, e.g. a short delivery. */
+  deductionsCents: cents,
+  deductionNote: z.string().nullable(),
+  netCents: cents,
+  /** held: not yet received · on_hold: the school flagged an issue · queued: approved, not sent · paid */
+  status: z.enum(["held", "on_hold", "queued", "paid"]),
+  paidAt: isoDateTime.nullable(),
+  reference: z.string().nullable(),
+})
+export type Payout = z.infer<typeof payoutSchema>
+
+export const publisherPayoutsSchema = z.object({
+  commissionRate: z.number().min(0).max(1),
+  account: payoutAccountSchema,
+  payouts: z.array(payoutSchema),
+})
+export type PublisherPayouts = z.infer<typeof publisherPayoutsSchema>
+
+export const teamRoleSchema = z.enum(["admin", "warehouse", "finance"])
+export type TeamRole = z.infer<typeof teamRoleSchema>
+
+export const notificationEventSchema = z.enum(["batch_ready", "delivery_issue", "payout_sent", "low_stock", "weekly_summary"])
+export type NotificationEvent = z.infer<typeof notificationEventSchema>
+
+export const publisherSettingsSchema = z.object({
+  profile: z.object({
+    companyName: z.string(),
+    kraPin: z.string(),
+    verifiedAt: isoDateTime.nullable(),
+    contactName: z.string(),
+    phone: z.string(),
+    email: z.email(),
+    dispatchAddress: z.string(),
+    county: z.string(),
+  }),
+  team: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      /** Phone (2547…) or email the invite went to. */
+      contact: z.string(),
+      role: teamRoleSchema,
+      status: z.enum(["active", "invited"]),
+      isYou: z.boolean(),
+    })
+  ),
+  /** Which channels each event is sent on. */
+  notifications: z.record(notificationEventSchema, z.object({ sms: z.boolean(), email: z.boolean() })),
+})
+export type PublisherSettings = z.infer<typeof publisherSettingsSchema>
+export type TeamMember = PublisherSettings["team"][number]
 
 export const adminOverviewSchema = z.object({
   termName: z.string(),

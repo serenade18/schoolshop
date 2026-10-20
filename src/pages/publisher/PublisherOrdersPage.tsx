@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router"
 
 import { PageHeader } from "@/components/common/PageHeader"
 import { QueryBoundary } from "@/components/common/QueryBoundary"
@@ -88,7 +89,13 @@ function Batches({ batches }: { batches: SchoolBatch[] }) {
               </ul>
               <div className="flex flex-wrap gap-2.5">
                 <Button variant="outline">Download labels</Button>
-                <Button disabled={selected.status !== "ready_to_pack"}>Mark dispatched</Button>
+                {selected.status === "ready_to_pack" ? (
+                  <Button asChild>
+                    <Link to={`/publisher/dispatches?batch=${selected.id}`}>Dispatch</Link>
+                  </Button>
+                ) : (
+                  <Button disabled>Dispatch</Button>
+                )}
               </div>
               <p className="text-[13px] text-muted-foreground">Payout is released when the school confirms the delivery.</p>
             </CardContent>
