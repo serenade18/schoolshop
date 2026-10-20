@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { Account, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
+import type { Account, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
 import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
@@ -24,6 +24,7 @@ export const queryKeys = {
   schoolSettings: ["school-settings"] as const,
   account: ["account"] as const,
   roster: ["school-roster"] as const,
+  adminOrgs: ["admin-orgs"] as const,
   staff: (scope: string) => ["staff", scope] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
@@ -201,6 +202,22 @@ export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
 }
 
 export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
+
+export const useAdminOrgs = (enabled = true) => useQuery({ queryKey: queryKeys.adminOrgs, queryFn: endpoints.listAdminOrgs, enabled })
+export const useAdminOrg = (id: string | null) =>
+  useQuery({ queryKey: [...queryKeys.adminOrgs, id], queryFn: () => endpoints.getAdminOrg(id!), enabled: !!id })
+
+/** Decisions and check changes return the organisation; the list and overview refresh behind it. */
+export function useOrgMutation<V>(fn: (vars: V) => Promise<AdminOrg>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (org) => {
+      qc.setQueryData([...queryKeys.adminOrgs, org.id], org)
+      return Promise.all([qc.invalidateQueries({ queryKey: queryKeys.adminOrgs, exact: true }), qc.invalidateQueries({ queryKey: queryKeys.adminOverview })])
+    },
+  })
+}
 
 export const useRoster = () => useQuery({ queryKey: queryKeys.roster, queryFn: endpoints.getRoster })
 

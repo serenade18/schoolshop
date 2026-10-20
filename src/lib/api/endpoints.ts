@@ -4,6 +4,8 @@ import { api } from "@/lib/api/client"
 import type { PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
 import {
   accountSchema,
+  adminOrgSchema,
+  adminOrgSummarySchema,
   adminOverviewSchema,
   authTokensSchema,
   booklistSchema,
@@ -256,6 +258,16 @@ export const changePassword = (input: { currentPassword: string; newPassword: st
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)
+export const listAdminOrgs = () => get("/admin/organisations/", z.array(adminOrgSummarySchema))
+export const getAdminOrg = (id: string) => get(`/admin/organisations/${id}/`, adminOrgSchema)
+export type OrgDecision = "approve" | "request-info" | "reject" | "suspend" | "reactivate"
+/** Every decision is logged and the organisation's contact gets the note by SMS and email. */
+export const decideOrg = (id: string, decision: OrgDecision, note: string) =>
+  post(`/admin/organisations/${id}/${decision}/`, adminOrgSchema, { note })
+export const setOrgCheck = (id: string, checkId: string, state: "verified" | "failed") =>
+  post(`/admin/organisations/${id}/checks/${checkId}/`, adminOrgSchema, { state })
+export const inviteOrg = (input: { type: "school" | "publisher"; name: string; contact: string }) =>
+  post("/admin/organisations/invite/", z.object({ sent: z.boolean() }), input)
 
 // Staff and roles, the same shape for schools, publishers and SchoolShop itself.
 export type StaffScope = "school" | "publisher" | "admin"

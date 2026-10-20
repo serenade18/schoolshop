@@ -576,6 +576,48 @@ export const staffDirectorySchema = z.object({
 })
 export type StaffDirectory = z.infer<typeof staffDirectorySchema>
 
+export const orgStatusSchema = z.enum(["pending", "info_requested", "live", "suspended", "rejected"])
+export type OrgStatus = z.infer<typeof orgStatusSchema>
+
+export const adminOrgSummarySchema = z.object({
+  id: z.string(),
+  type: z.enum(["school", "publisher"]),
+  name: z.string(),
+  town: z.string(),
+  county: z.string(),
+  status: orgStatusSchema,
+  appliedAt: isoDateTime,
+  /** Checks still open, for applications. */
+  openChecks: z.number().int(),
+})
+export type AdminOrgSummary = z.infer<typeof adminOrgSummarySchema>
+
+export const orgCheckSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  /** verified: someone at SchoolShop checked it; uploaded: waiting to be checked; missing: not sent yet. */
+  state: z.enum(["verified", "uploaded", "missing", "failed"]),
+  fileName: z.string().nullable(),
+  uploadedAt: isoDateTime.nullable(),
+})
+export type OrgCheck = z.infer<typeof orgCheckSchema>
+
+export const adminOrgSchema = adminOrgSummarySchema.extend({
+  contactName: z.string(),
+  contactPhone: z.string(),
+  contactEmail: z.string().nullable(),
+  /** Ministry of Education number for schools, company registration for publishers. */
+  registrationNo: z.string().nullable(),
+  kraPin: z.string().nullable(),
+  verifiedAt: isoDateTime.nullable(),
+  suspendedReason: z.string().nullable(),
+  checks: z.array(orgCheckSchema),
+  /** Live organisations: this term at a glance. */
+  stats: z.array(z.object({ label: z.string(), value: z.string() })),
+  history: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+})
+export type AdminOrg = z.infer<typeof adminOrgSchema>
+
 export const adminOverviewSchema = z.object({
   termName: z.string(),
   salesCents: cents,

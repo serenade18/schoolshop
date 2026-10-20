@@ -44,7 +44,7 @@ const publisherNav: DashboardNavItem[] = [
 
 const adminNav: DashboardNavItem[] = [
   { to: "/admin", label: "Overview", end: true, permission: "overview.view" },
-  { to: "/admin/organisations", label: "Schools & publishers", badge: 5, permission: "orgs.view" },
+  { to: "/admin/organisations", label: "Schools & publishers", permission: "orgs.view" },
   { to: "/admin/orders", label: "Orders", permission: "orders.view" },
   { to: "/admin/payments", label: "Payments & payouts", permission: "money.view" },
   { to: "/admin/refunds", label: "Refunds & disputes", permission: "money.view" },
@@ -142,7 +142,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, lazy: page(() => import("@/pages/admin/AdminOverviewPage"), "AdminOverviewPage") },
           { path: "staff", lazy: page(() => import("@/pages/admin/AdminStaffPage"), "AdminStaffPage") },
-          ...comingSoon(adminNav.filter((n) => n.to !== "/admin/staff"), "/admin"),
+          { path: "organisations", lazy: page(() => import("@/pages/admin/AdminOrganisationsPage"), "AdminOrganisationsPage") },
+          ...comingSoon(adminNav.filter((n) => !["/admin/staff", "/admin/organisations"].includes(n.to)), "/admin"),
         ],
       },
     ],

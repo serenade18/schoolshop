@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, StudentOrderRow } from "@/lib/api/schemas"
+import type { AdminOrg, Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, StudentOrderRow } from "@/lib/api/schemas"
 import { ownerRole, permissionsFor, roleDef, type OrgType } from "@/lib/access"
 import * as db from "@/mocks/fixtures"
 
@@ -65,6 +65,9 @@ let studentSeq = 5000
 const mask = (e164: string) => { const l = e164.replace(/^254/, "0"); return `${l.slice(0, 4)} ••• ${l.slice(-3)}` }
 const allClasses = () => db.schoolGrades.flatMap((g) => g.classNames.map((className) => ({ className, gradeName: g.gradeName })))
 
+const adminOrgs = new Map(db.adminOrgs.map((o) => [o.id, structuredClone(o)]))
+const orgSummary = ({ id, type, name, town, county, status, appliedAt, checks }: AdminOrg) => ({ id, type, name, town, county, status, appliedAt, openChecks: checks.filter((c) => c.state !== "verified").length })
+
 const schoolRows = db.schoolOrderRows.map((r) => structuredClone(r))
 const schoolOrders = new Map(db.schoolOrderDetails.map((o) => [o.id, structuredClone(o)]))
 const schoolDeliveries = new Map(db.schoolDeliveries.map((d) => [d.id, structuredClone(d)]))
@@ -109,6 +112,11 @@ function createStudent(body: Record<string, unknown>) {
   }
   schoolRows.push(row)
   return row
+}
+
+function logOrg(org: AdminOrg, userId: string | null, text: string) {
+  const actor = usersById().find((u) => u.id === userId)?.name ?? "SchoolShop"
+  org.history.unshift({ id: `h-${Date.now()}-${org.history.length}`, at: new Date().toISOString().replace("Z", "+00:00"), actor, text })
 }
 
 function collectionRow(o: SchoolOrderDetail): CollectionRow {
@@ -174,6 +182,8 @@ const guards: Array<[method: string, path: RegExp, orgType: OrgType, permission:
   ["*", /^\/publisher\/settings\//, "publisher", "settings.manage"],
   ["*", /^\/publisher\/staff\//, "publisher", "staff.manage"],
   ["get", /^\/admin\/overview\/$/, "platform", "overview.view"],
+  ["get", /^\/admin\/organisations\//, "platform", "orgs.view"],
+  ["post", /^\/admin\/organisations\//, "platform", "orgs.verify"],
   ["*", /^\/admin\/staff\//, "platform", "staff.manage"],
 ]
 
@@ -363,7 +373,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
 
   ["get", "/schools/", ({ query }) => {
     const q = (query.search ?? "").toLowerCase()
-    const results = db.schools.filter((s) => `${s.name} ${s.town}`.toLowerCase().includes(q))
+    const results = db.schools.filter((s) => adminOrgs.get(s.id)?.status !== "suspended" && `${s.name} ${s.town}`.toLowerCase().includes(q))
     return { count: results.length, next: null, previous: null, results }
   }],
   ["get", "/schools/:slug/", ({ params }) => db.schools.find((s) => s.slug === params.slug) ?? raise(notFound())],
@@ -682,6 +692,62 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   }],
   ["get", "/school/orders/", () => ({ termName: db.schoolOverview.termName, orderDeadline: db.schoolOverview.orderDeadline, rows: schoolRows })],
   ["get", "/school/orders/:id/", ({ params }) => schoolOrders.get(params.id) ?? raise(notFound())],
+  ["get", "/admin/organisations/", () => [...adminOrgs.values()].map(orgSummary)],
+  ["post", "/admin/organisations/invite/", ({ body }) => {
+    if (String(body.name ?? "").trim().length < 2) throw new HttpError(400, { name: ["Enter the organisation's name."] })
+    if (!String(body.contact ?? "").trim()) throw new HttpError(400, { contact: ["Enter a phone number or email."] })
+    return { sent: true }
+  }],
+  ["get", "/admin/organisations/:id/", ({ params }) => adminOrgs.get(params.id) ?? raise(notFound())],
+  ["post", "/admin/organisations/:id/checks/:checkId/", ({ params, body, userId }) => {
+    const org = adminOrgs.get(params.id) ?? raise(notFound())
+    const check = org.checks.find((c) => c.id === params.checkId) ?? raise(notFound())
+    if (check.state === "missing") throw new HttpError(400, { detail: "Nothing has been uploaded for this yet. Ask the applicant for it." })
+    check.state = body.state === "failed" ? "failed" : "verified"
+    logOrg(org, userId, `${check.state === "verified" ? "checked" : "flagged"} ${check.label}`)
+    org.openChecks = org.checks.filter((c) => c.state !== "verified").length
+    return org
+  }],
+  ["post", "/admin/organisations/:id/:decision/", ({ params, body, userId }) => {
+    const org = adminOrgs.get(params.id) ?? raise(notFound())
+    const note = String(body.note ?? "").trim()
+    const open = org.checks.filter((c) => c.state !== "verified")
+    switch (params.decision) {
+      case "approve":
+        if (!["pending", "info_requested"].includes(org.status)) throw new HttpError(409, { detail: "Only applications can be approved." })
+        if (open.length) throw new HttpError(400, { detail: `Still to check: ${open.map((c) => c.label).join(", ")}.` })
+        Object.assign(org, { status: "live", verifiedAt: new Date().toISOString().replace("Z", "+00:00") })
+        logOrg(org, userId, `approved ${org.name}${note ? `: "${note}"` : ""}`)
+        if (org.type === "school" && !db.schools.some((s) => s.id === org.id)) db.schools.push({ id: org.id, slug: org.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-$/, ""), name: org.name, town: org.town, county: org.county, verified: true })
+        break
+      case "request-info":
+        if (!["pending", "info_requested"].includes(org.status)) throw new HttpError(409, { detail: "Only applications can be asked for more information." })
+        if (!note) throw new HttpError(400, { note: ["Tell them what you need."] })
+        org.status = "info_requested"
+        logOrg(org, userId, `asked for more information: "${note}"`)
+        break
+      case "reject":
+        if (!["pending", "info_requested"].includes(org.status)) throw new HttpError(409, { detail: "Only applications can be rejected." })
+        if (!note) throw new HttpError(400, { note: ["Give the reason. The applicant sees it."] })
+        org.status = "rejected"
+        logOrg(org, userId, `rejected the application: "${note}"`)
+        break
+      case "suspend":
+        if (org.status !== "live") throw new HttpError(409, { detail: "Only live organisations can be paused." })
+        if (!note) throw new HttpError(400, { note: ["Give the reason. Their admins see it."] })
+        Object.assign(org, { status: "suspended", suspendedReason: note })
+        logOrg(org, userId, `paused ${org.name}: "${note}"`)
+        break
+      case "reactivate":
+        if (org.status !== "suspended") throw new HttpError(409, { detail: "This organisation isn't paused." })
+        Object.assign(org, { status: "live", suspendedReason: null })
+        logOrg(org, userId, `turned ${org.name} back on${note ? `: "${note}"` : ""}`)
+        break
+      default:
+        throw notFound()
+    }
+    return org
+  }],
   ["get", "/school/students/", () => {
     const teachers = directories.school.members.filter((m) => m.role === "teacher" && m.status !== "suspended")
     return {
@@ -824,7 +890,16 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     Object.assign(item, body, { isbn })
     return item
   }],
-  ["get", "/admin/overview/", () => db.adminOverview],
+  ["get", "/admin/overview/", () => {
+    const orgs = [...adminOrgs.values()]
+    const live = (t: string) => orgs.filter((o) => o.type === t && o.status === "live").length
+    const waiting = (t: string) => orgs.filter((o) => o.type === t && (o.status === "pending" || o.status === "info_requested")).length
+    const [schools, publishers] = [waiting("school"), waiting("publisher")]
+    const alerts = db.adminOverview.alerts.filter((a) => a.href !== "/admin/organisations")
+    if (publishers) alerts.unshift({ id: "al-2", severity: "high", title: `${publishers} publisher application${publishers === 1 ? "" : "s"}`, detail: "Documents uploaded", href: "/admin/organisations" })
+    if (schools) alerts.unshift({ id: "al-1", severity: "high", title: `${schools} school${schools === 1 ? "" : "s"} waiting for verification`, detail: "Oldest: 4 days ago", href: "/admin/organisations" })
+    return { ...db.adminOverview, liveSchools: live("school"), livePublishers: live("publisher"), alerts }
+  }],
 ]
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`

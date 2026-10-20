@@ -1,4 +1,5 @@
 import type {
+  AdminOrg,
   AdminOverview,
   Booklist,
   CatalogItem,
@@ -649,6 +650,93 @@ export const publisherSettings: PublisherSettings = {
     weekly_summary: { sms: false, email: true },
   },
 }
+
+/*
+ * Every school and publisher, as SchoolShop admins see them: 41 live schools,
+ * 9 live publishers, 5 applications waiting, one suspended school and one
+ * rejected application.
+ */
+export const adminOrgs: AdminOrg[] = (() => {
+  const day = (d: number, h = 9) => new Date(Date.now() - d * 86_400_000 - (h % 6) * 3_600_000).toISOString().replace(/\.\d+Z$/, "+00:00")
+  const verified = (label: string, file: string, d = 120): AdminOrg["checks"][number] => ({ id: label.toLowerCase().replace(/[^a-z]+/g, "-"), label, state: "verified", fileName: file, uploadedAt: day(d) })
+  const check = (label: string, state: AdminOrg["checks"][number]["state"], file: string | null, d = 2): AdminOrg["checks"][number] => ({ id: label.toLowerCase().replace(/[^a-z]+/g, "-"), label, state, fileName: state === "missing" ? null : file, uploadedAt: state === "missing" ? null : day(d) })
+  const schoolChecks = (name: string, d = 120) => [
+    verified("Ministry of Education registration", `${name} MOE certificate.pdf`, d),
+    verified("KRA PIN certificate", "KRA PIN.pdf", d),
+    verified("Head teacher's phone verified", "Call on file", d),
+    verified("Class list", "Class list.csv", d),
+  ]
+  const pubChecks = (d = 300) => [
+    verified("Certificate of incorporation", "Incorporation.pdf", d),
+    verified("KRA PIN certificate", "KRA PIN.pdf", d),
+    verified("Payout account", "Bank letter.pdf", d),
+    verified("Catalog sample", "Catalog.csv", d),
+  ]
+  const orgs: AdminOrg[] = []
+  const add = (o: Partial<AdminOrg> & Pick<AdminOrg, "id" | "type" | "name" | "town" | "county" | "status">) => {
+    const checks = o.checks ?? (o.type === "school" ? schoolChecks(o.name) : pubChecks())
+    orgs.push({
+      appliedAt: day(200),
+      contactName: "—",
+      contactPhone: "254700000000",
+      contactEmail: null,
+      registrationNo: null,
+      kraPin: null,
+      verifiedAt: o.status === "live" || o.status === "suspended" ? day(150) : null,
+      suspendedReason: null,
+      stats: [],
+      history: [],
+      ...o,
+      checks,
+      openChecks: checks.filter((c) => c.state !== "verified").length,
+    })
+  }
+
+  // Live schools we already know from the rest of the demo.
+  add({ id: "sch-greenhill", type: "school", name: "Greenhill Academy", town: "Nakuru", county: "Nakuru", status: "live", contactName: "Grace Wambui", contactPhone: "254722000111", contactEmail: "office@greenhill.ac.ke", registrationNo: "MOE/NKR/P/1187", kraPin: "P051887120K", verifiedAt: "2026-08-02T10:15:00+03:00",
+    stats: [{ label: "Students", value: "540" }, { label: "Paid orders this term", value: "312" }, { label: "Sales this term", value: "KES 1,006,520" }, { label: "Booklists", value: "5 published, 1 draft" }],
+    history: [{ id: "h1", at: "2026-08-02T10:15:00+03:00", actor: "SchoolShop Ops", text: "approved Greenhill Academy" }] })
+  for (const [id, name, town, county] of [
+    ["sch-stmarys", "St. Mary's Primary", "Eldoret", "Uasin Gishu"], ["sch-kilimani", "Kilimani Primary", "Nairobi", "Nairobi"], ["sch-riverside", "Riverside Junior School", "Kisumu", "Kisumu"],
+    ["sch-hillcrest", "Hillcrest Prep", "Nyeri", "Nyeri"], ["sch-sunrise", "Sunrise Academy", "Machakos", "Machakos"], ["sch-lakeview", "Lakeview Primary", "Naivasha", "Nakuru"], ["sch-kitale", "Kitale Hills Academy", "Kitale", "Trans Nzoia"],
+  ]) add({ id, type: "school", name, town, county, status: "live", stats: [{ label: "Paid orders this term", value: String(90 + name.length * 7) }] })
+  // The rest of the 41 live schools.
+  const first = ["Upendo", "Neema", "Jabali", "Mlima", "Bidii", "Faraja", "Imani", "Nuru", "Tumaini", "Baraka", "Shujaa", "Uzima", "Pendo", "Kesho", "Juhudi", "Heri", "Wema"]
+  const kinds = ["Primary", "Academy", "Junior School"]
+  const places: [string, string][] = [["Thika", "Kiambu"], ["Kericho", "Kericho"], ["Embu", "Embu"], ["Meru", "Meru"], ["Kakamega", "Kakamega"], ["Nanyuki", "Laikipia"], ["Kisii", "Kisii"], ["Malindi", "Kilifi"], ["Bungoma", "Bungoma"], ["Kitui", "Kitui"], ["Ruiru", "Kiambu"]]
+  for (let i = 0; orgs.length < 41; i++) {
+    const [town, county] = places[i % places.length]
+    add({ id: `sch-gen-${i}`, type: "school", name: `${first[i % first.length]} ${kinds[i % kinds.length]}${i >= first.length ? ` ${town}` : ""}`, town, county, status: "live", stats: [{ label: "Paid orders this term", value: String(40 + ((i * 37) % 260)) }] })
+  }
+  // Live publishers.
+  for (const [id, name, town] of [["pub-longhorn", "Longhorn Publishers", "Nairobi"], ["pub-klb", "Kenya Literature Bureau", "Nairobi"], ["pub-oxford", "Oxford University Press East Africa", "Nairobi"], ["pub-moran", "Moran Publishers", "Nairobi"], ["pub-kasuku", "Kasuku Stationers", "Nairobi"], ["pub-storymoja", "Storymoja", "Nairobi"], ["pub-spotlight", "Spotlight Publishers", "Nairobi"], ["pub-mentor", "Mentor Publishers", "Nairobi"], ["pub-phoenix", "Phoenix Publishers", "Nairobi"]])
+    add({ id, type: "publisher", name, town, county: "Nairobi", status: "live", contactName: id === "pub-longhorn" ? "Peter Kamau" : "—", contactPhone: id === "pub-longhorn" ? "254700000444" : "254700000000",
+      stats: id === "pub-longhorn" ? [{ label: "Live titles", value: "7" }, { label: "Schools supplied", value: "7" }, { label: "Paid out this term", value: "KES 2,187,200" }] : [] })
+
+  // Waiting for review: three schools, two publishers.
+  add({ id: "app-mwangaza", type: "school", name: "Mwangaza Academy", town: "Thika", county: "Kiambu", status: "pending", appliedAt: day(1, 15), contactName: "Joyce Wairimu", contactPhone: "254733000222", contactEmail: "head@mwangaza.ac.ke", registrationNo: null, kraPin: "P052209981Q",
+    checks: [check("Ministry of Education registration", "missing", null), check("KRA PIN certificate", "uploaded", "KRA PIN certificate.pdf", 1), check("Head teacher's phone verified", "verified", "Verified by one-time code", 1), check("Class list", "uploaded", "Mwangaza class lists 2027.csv", 1)],
+    history: [{ id: "h1", at: day(1, 15), actor: "Joyce Wairimu", text: "applied as a school" }] })
+  add({ id: "app-bahari", type: "school", name: "Bahari Junior School", town: "Mombasa", county: "Mombasa", status: "pending", appliedAt: day(0, 6), contactName: "Hassan Ali", contactPhone: "254711000333", contactEmail: "admin@baharijunior.sc.ke", registrationNo: "MOE/MSA/P/2214", kraPin: "P051774409M",
+    checks: [check("Ministry of Education registration", "uploaded", "MOE certificate.pdf", 0), check("KRA PIN certificate", "uploaded", "KRA PIN.pdf", 0), check("Head teacher's phone verified", "verified", "Verified by one-time code", 0), check("Class list", "uploaded", "Classes.csv", 0)],
+    history: [{ id: "h1", at: day(0, 6), actor: "Hassan Ali", text: "applied as a school" }] })
+  add({ id: "app-tumaini", type: "school", name: "Tumaini Primary", town: "Machakos", county: "Machakos", status: "info_requested", appliedAt: day(4), contactName: "Peter Musyoka", contactPhone: "254722550101", contactEmail: null, registrationNo: "MOE/MKS/P/0931", kraPin: null,
+    checks: [check("Ministry of Education registration", "verified", "MOE.pdf", 4), check("KRA PIN certificate", "failed", "KRA PIN.jpg", 4), check("Head teacher's phone verified", "verified", "Verified by one-time code", 4), check("Class list", "missing", null)],
+    history: [{ id: "h2", at: day(2), actor: "Kevin Mutai", text: "asked for more information: \"The KRA PIN photo is unreadable. Please upload the PDF from iTax, and your class lists.\"" }, { id: "h1", at: day(4), actor: "Peter Musyoka", text: "applied as a school" }] })
+  add({ id: "app-jamii", type: "publisher", name: "Jamii Educational Books", town: "Nairobi", county: "Nairobi", status: "pending", appliedAt: day(3), contactName: "Esther Njoki", contactPhone: "254700000555", contactEmail: "esther@jamiibooks.co.ke", registrationNo: "PVT-2019-0048812", kraPin: "P051998201L",
+    checks: [check("Certificate of incorporation", "uploaded", "CR12 and incorporation.pdf", 3), check("KRA PIN certificate", "uploaded", "KRA PIN.pdf", 3), check("Payout account", "missing", null), check("Catalog sample", "uploaded", "Jamii catalog 2027.csv", 3)],
+    history: [{ id: "h1", at: day(3), actor: "Esther Njoki", text: "applied as a publisher" }] })
+  add({ id: "app-uhuru", type: "publisher", name: "Uhuru Stationers", town: "Kisumu", county: "Kisumu", status: "pending", appliedAt: day(1), contactName: "Otieno Ochieng", contactPhone: "254790000555", contactEmail: null, registrationNo: "BN-2016-771204", kraPin: "A009812214Z",
+    checks: [check("Certificate of incorporation", "uploaded", "Business name certificate.pdf", 1), check("KRA PIN certificate", "uploaded", "KRA PIN.pdf", 1), check("Payout account", "uploaded", "M-Pesa till confirmation.png", 1), check("Catalog sample", "uploaded", "Price list.csv", 1)],
+    history: [{ id: "h1", at: day(1), actor: "Otieno Ochieng", text: "applied as a publisher" }] })
+  // Suspended and rejected.
+  add({ id: "sch-brightstar", type: "school", name: "Brightstar School", town: "Eldoret", county: "Uasin Gishu", status: "suspended", contactName: "Daniel Rono", contactPhone: "254722909090", suspendedReason: "Parents report paid packs not handed out. Paused while we investigate.",
+    history: [{ id: "h2", at: day(6), actor: "SchoolShop Ops", text: "paused Brightstar School: \"Parents report paid packs not handed out. Paused while we investigate.\"" }, { id: "h1", at: day(200), actor: "SchoolShop Ops", text: "approved Brightstar School" }] })
+  add({ id: "app-quickbooks", type: "publisher", name: "QuickBooks Kenya Ltd", town: "Nairobi", county: "Nairobi", status: "rejected", appliedAt: day(9), contactName: "J. Doe", contactPhone: "254701000999",
+    checks: [check("Certificate of incorporation", "failed", "certificate.jpg", 9), check("KRA PIN certificate", "missing", null), check("Payout account", "missing", null), check("Catalog sample", "missing", null)],
+    history: [{ id: "h2", at: day(8), actor: "Kevin Mutai", text: "rejected the application: \"The incorporation certificate doesn't match the company name and no KRA PIN was provided.\"" }, { id: "h1", at: day(9), actor: "J. Doe", text: "applied as a publisher" }] })
+  return orgs
+})()
 
 export const adminOverview: AdminOverview = {
   termName: "Term 1, 2027",

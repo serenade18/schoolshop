@@ -5,7 +5,7 @@ import { Lock, LogOut, Menu, X } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 import { Button } from "@/components/ui/button"
 import { ApiError } from "@/lib/api/client"
-import { useMe } from "@/lib/api/queries"
+import { useAdminOrgs, useMe } from "@/lib/api/queries"
 import { useAccess } from "@/lib/useAccess"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/auth"
@@ -43,7 +43,12 @@ export function DashboardLayout({ tag, tone = "light", nav: allNav, orgLabel }: 
   const me = useRefreshAccess()
   // A session saved before roles existed has no permissions yet: wait for /me/ rather than flash "no access".
   const ready = access.roleId !== "" || me.isFetched
-  const nav = allNav.filter((n) => !n.permission || access.can(n.permission))
+  // Applications waiting count live, so the badge drops as admins work through them.
+  const orgs = useAdminOrgs(access.orgType === "platform" && access.can("orgs.view"))
+  const waiting = orgs.data?.filter((o) => o.status === "pending" || o.status === "info_requested").length
+  const nav = allNav
+    .filter((n) => !n.permission || access.can(n.permission))
+    .map((n) => (n.to === "/admin/organisations" && waiting !== undefined ? { ...n, badge: waiting } : n))
   // The menu belongs to the page it was opened on, so navigating closes it.
   const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null)
   const menuOpen = menuOpenOn === pathname
