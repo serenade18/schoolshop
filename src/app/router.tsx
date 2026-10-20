@@ -63,6 +63,8 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "shop", element: <ShopPage /> },
       { path: "schools", element: <SchoolsPage /> },
+      { path: "for-schools", lazy: page(() => import("@/pages/public/ForSchoolsPage"), "ForSchoolsPage") },
+      { path: "for-publishers", lazy: page(() => import("@/pages/public/ForPublishersPage"), "ForPublishersPage") },
       { path: "shop/:productId", lazy: page(() => import("@/pages/public/ProductPage"), "ProductPage") },
       { path: "schools/:slug", element: <SchoolPage /> },
     ],
