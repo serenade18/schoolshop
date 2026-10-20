@@ -23,7 +23,7 @@ export function ProductPage() {
   const product = useProduct(productId)
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 pt-5 pb-32 md:pt-8 md:pb-16">
+    <div className="mx-auto flex max-w-site flex-col gap-6 px-5 lg:px-10 pt-5 pb-32 md:pt-8 md:pb-16">
       <QueryBoundary query={product} fallback={<ProductSkeleton />}>
         {(p) => <ProductDetailView product={p} />}
       </QueryBoundary>

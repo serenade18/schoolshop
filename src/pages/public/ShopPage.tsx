@@ -70,7 +70,7 @@ export function ShopPage() {
   const curriculumLabel = curriculumNames[curriculum] ?? curriculum.toUpperCase()
 
   return (
-    <div className="mx-auto max-w-6xl px-5 pt-6 pb-16 md:pt-8">
+    <div className="mx-auto max-w-site px-5 lg:px-10 pt-6 pb-16 md:pt-8">
       <header className="flex flex-col gap-3">
         <p className="text-sm font-bold tracking-[0.08em] text-accent-text uppercase">The SchoolShop catalogue</p>
         <h1 className="text-[clamp(30px,5vw,40px)] leading-tight font-semibold tracking-tight">{title}</h1>

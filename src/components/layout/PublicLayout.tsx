@@ -39,7 +39,7 @@ export function PublicLayout() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface">
       <header className="site-header sticky top-0 z-30 border-b bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-x-7 px-5 md:h-[72px]">
+        <div className="mx-auto flex h-16 max-w-site items-center gap-x-7 px-5 lg:px-10 md:h-[72px]">
           <Link to="/" aria-label="SchoolShop home" className="flex shrink-0">
             <Logo label="" className="h-6 md:h-7" />
           </Link>
@@ -120,7 +120,7 @@ export function PublicLayout() {
         </div>
       </main>
       <footer className="border-t">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-sm text-muted-foreground">
+        <div className="mx-auto flex max-w-site flex-wrap items-center justify-between gap-4 px-5 lg:px-10 py-8 text-sm text-muted-foreground">
           <Logo className="h-5.5" />
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
             <Link to="/help" className="text-ink/80 hover:underline">Help &amp; FAQs</Link>

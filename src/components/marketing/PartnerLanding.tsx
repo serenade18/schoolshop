@@ -38,7 +38,7 @@ export function PartnerLanding({ content: c }: { content: PartnerLandingContent 
   return (
     <>
       <section className={cn("border-b", c.tone === "teal" ? "bg-teal-light" : "bg-orange-light")}>
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-12 md:py-16 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
+        <div className="mx-auto grid max-w-site items-center gap-10 px-5 lg:px-10 py-12 md:py-16 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14">
           <Reveal className="flex flex-col items-start gap-5">
             <span className="text-[13px] font-bold tracking-[0.08em] text-accent-text uppercase">{c.eyebrow}</span>
             <h1 className="text-[clamp(34px,5.4vw,56px)] leading-[1.05] font-semibold tracking-tight">{c.title}</h1>
@@ -61,7 +61,7 @@ export function PartnerLanding({ content: c }: { content: PartnerLandingContent 
       </section>
 
       <section aria-label="Benefits" className="border-b">
-        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-10 sm:grid-cols-3">
+        <div className="mx-auto grid max-w-site gap-6 px-5 lg:px-10 py-10 sm:grid-cols-3">
           {c.benefits.map(({ title, body, icon: Icon }, i) => (
             <Reveal key={title} delay={i * 110} className="flex items-start gap-3.5">
               <span aria-hidden className="pop-in flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-light">
@@ -77,7 +77,7 @@ export function PartnerLanding({ content: c }: { content: PartnerLandingContent 
       </section>
 
       <section aria-labelledby="how-h" className="bg-teal text-white">
-        <div className="mx-auto max-w-6xl px-5 py-16">
+        <div className="mx-auto max-w-site px-5 lg:px-10 py-16">
           <Reveal>
             <h2 id="how-h" className="mb-10 text-[clamp(26px,4vw,34px)] font-semibold">How it works</h2>
           </Reveal>
@@ -95,7 +95,7 @@ export function PartnerLanding({ content: c }: { content: PartnerLandingContent 
         </div>
       </section>
 
-      <section aria-labelledby="features-h" className="mx-auto max-w-6xl px-5 py-16">
+      <section aria-labelledby="features-h" className="mx-auto max-w-site px-5 lg:px-10 py-16">
         <Reveal className="mb-8 max-w-2xl">
           <h2 id="features-h" className="text-[clamp(26px,4vw,34px)] font-semibold">What you get</h2>
         </Reveal>
@@ -115,7 +115,7 @@ export function PartnerLanding({ content: c }: { content: PartnerLandingContent 
       </section>
 
       <section aria-labelledby="faq-h" className="border-t bg-paper">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className="mx-auto grid max-w-site gap-10 px-5 lg:px-10 py-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <Reveal className="flex flex-col gap-4">
             <h2 className="text-[clamp(22px,3vw,26px)] font-semibold">{c.checklistTitle}</h2>
             <ul className="flex flex-col gap-3">
@@ -146,7 +146,7 @@ export function PartnerLanding({ content: c }: { content: PartnerLandingContent 
         </div>
       </section>
 
-      <section aria-labelledby="closing-h" className="mx-auto max-w-6xl px-5 py-16">
+      <section aria-labelledby="closing-h" className="mx-auto max-w-site px-5 lg:px-10 py-16">
         <Reveal>
           <div className="flex flex-col items-start gap-5 rounded-3xl bg-ink p-8 text-white md:flex-row md:items-center md:justify-between md:p-12">
             <div className="flex max-w-xl flex-col gap-2">
