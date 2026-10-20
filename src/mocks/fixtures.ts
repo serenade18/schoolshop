@@ -574,14 +574,6 @@ export const schoolSettings: SchoolSettings = {
     deliveryHours: "Mon–Fri, 8am–4pm",
   },
   parents: { reminderDays: 3, smsWhenAtSchool: true, collectionPoint: "class_teacher" },
-  team: [
-    { id: "st-1", name: "Grace Wambui", contact: "254722000111", role: "school_admin", classNames: [], status: "active", isYou: true },
-    { id: "st-2", name: "Samuel Kiprop", contact: "254711908765", role: "bursar", classNames: [], status: "active", isYou: false },
-    { id: "st-3", name: "Mercy Achieng", contact: "254733200411", role: "teacher", classNames: ["4 East"], status: "active", isYou: false },
-    { id: "st-4", name: "John Mwangi", contact: "j.mwangi@greenhill.ac.ke", role: "teacher", classNames: ["7 Blue", "7 Green"], status: "active", isYou: false },
-    { id: "st-5", name: "Lucy Chebet", contact: "254799331200", role: "teacher", classNames: ["PP2 Rose", "PP2 Lily"], status: "invited", isYou: false },
-  ],
-  classNames: schoolGrades.flatMap((g) => g.classNames),
 }
 
 /** Longhorn's own catalog, as the demo publisher sees it. */
@@ -649,12 +641,6 @@ export const publisherSettings: PublisherSettings = {
     dispatchAddress: "Funzi Road, Industrial Area, Nairobi",
     county: "Nairobi",
   },
-  team: [
-    { id: "tm-1", name: "Peter Kamau", contact: "254700000444", role: "admin", status: "active", isYou: true },
-    { id: "tm-2", name: "Joseph Mwangi", contact: "254711222333", role: "warehouse", status: "active", isYou: false },
-    { id: "tm-3", name: "Ann Njeri", contact: "ann.njeri@longhorn.co.ke", role: "finance", status: "active", isYou: false },
-    { id: "tm-4", name: "Brian Otieno", contact: "254733111222", role: "warehouse", status: "invited", isYou: false },
-  ],
   notifications: {
     batch_ready: { sms: true, email: true },
     delivery_issue: { sms: true, email: true },
@@ -681,9 +667,59 @@ export const adminOverview: AdminOverview = {
   ],
 }
 
-const user = (id: string, name: string, phone: string, roles: User["roles"], memberships: User["memberships"] = [], email: string | null = null): User => ({
-  id, name, phone, email, roles, memberships,
+type MembershipSeed = Pick<User["memberships"][number], "orgId" | "orgName" | "orgType" | "role">
+const user = (id: string, name: string, phone: string, roles: User["roles"], memberships: MembershipSeed[] = [], email: string | null = null): User => ({
+  id, name, phone, email, roles, memberships: memberships.map((m) => ({ ...m, staffRole: "", permissions: [], classNames: [] })),
 })
+
+/** Staff at each organisation, with their role. Contact is how they sign in (phone or email). */
+type StaffSeed = { id: string; name: string; contact: string; role: string; classNames: string[]; status: "active" | "invited" | "suspended"; lastActiveAt: string | null }
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+export const staffDirectories: Record<"school" | "publisher" | "platform", { orgId: string; members: StaffSeed[]; activity: { id: string; at: string; actor: string; text: string }[] }> = {
+  school: {
+    orgId: "sch-greenhill",
+    members: [
+      { id: "st-1", name: "Grace Wambui", contact: "254722000111", role: "school_admin", classNames: [], status: "active", lastActiveAt: hoursAgo(0.2) },
+      { id: "st-2", name: "Samuel Kiprop", contact: "254711908765", role: "bursar", classNames: [], status: "active", lastActiveAt: hoursAgo(3) },
+      { id: "st-3", name: "Mercy Achieng", contact: "254733200411", role: "teacher", classNames: ["4 East", "PP2 Rose"], status: "active", lastActiveAt: hoursAgo(26) },
+      { id: "st-4", name: "John Mwangi", contact: "j.mwangi@greenhill.ac.ke", role: "teacher", classNames: ["7 Blue", "7 Green"], status: "active", lastActiveAt: hoursAgo(50) },
+      { id: "st-5", name: "Lucy Chebet", contact: "254799331200", role: "teacher", classNames: ["PP2 Lily"], status: "invited", lastActiveAt: null },
+    ],
+    activity: [
+      { id: "a-3", at: hoursAgo(20), actor: "Grace Wambui", text: "invited Lucy Chebet as Teacher for PP2 Lily" },
+      { id: "a-2", at: hoursAgo(70), actor: "Grace Wambui", text: "gave Mercy Achieng PP2 Rose as well as 4 East" },
+      { id: "a-1", at: hoursAgo(300), actor: "Grace Wambui", text: "made Samuel Kiprop Bursar" },
+    ],
+  },
+  publisher: {
+    orgId: "pub-longhorn",
+    members: [
+      { id: "tm-1", name: "Peter Kamau", contact: "254700000444", role: "admin", classNames: [], status: "active", lastActiveAt: hoursAgo(0.1) },
+      { id: "tm-2", name: "Joseph Mwangi", contact: "254711222333", role: "warehouse", classNames: [], status: "active", lastActiveAt: hoursAgo(5) },
+      { id: "tm-3", name: "Ann Njeri", contact: "ann.njeri@longhorn.co.ke", role: "finance", classNames: [], status: "active", lastActiveAt: hoursAgo(28) },
+      { id: "tm-4", name: "Brian Otieno", contact: "254733111222", role: "warehouse", classNames: [], status: "invited", lastActiveAt: null },
+      { id: "tm-5", name: "Moses Kibet", contact: "254720555901", role: "warehouse", classNames: [], status: "suspended", lastActiveAt: hoursAgo(400) },
+    ],
+    activity: [
+      { id: "a-2", at: hoursAgo(30), actor: "Peter Kamau", text: "invited Brian Otieno as Warehouse" },
+      { id: "a-1", at: hoursAgo(200), actor: "Peter Kamau", text: "paused Moses Kibet's access" },
+    ],
+  },
+  platform: {
+    orgId: "platform",
+    members: [
+      { id: "ps-1", name: "SchoolShop Ops", contact: "254799000999", role: "super_admin", classNames: [], status: "active", lastActiveAt: hoursAgo(0.1) },
+      { id: "ps-2", name: "Kevin Mutai", contact: "254799000333", role: "operations", classNames: [], status: "active", lastActiveAt: hoursAgo(2) },
+      { id: "ps-3", name: "Daniel Otieno", contact: "254799000111", role: "finance", classNames: [], status: "active", lastActiveAt: hoursAgo(7) },
+      { id: "ps-4", name: "Lilian Achieng", contact: "254799000222", role: "support", classNames: [], status: "active", lastActiveAt: hoursAgo(1) },
+      { id: "ps-5", name: "Janet Wairimu", contact: "janet@schoolshop.co.ke", role: "support", classNames: [], status: "invited", lastActiveAt: null },
+    ],
+    activity: [
+      { id: "a-2", at: hoursAgo(12), actor: "SchoolShop Ops", text: "invited Janet Wairimu as Support" },
+      { id: "a-1", at: hoursAgo(90), actor: "SchoolShop Ops", text: "made Daniel Otieno Finance" },
+    ],
+  },
+}
 
 /**
  * Demo accounts, keyed by phone (2547XXXXXXXX). In mock mode every one-time
@@ -698,6 +734,25 @@ export const demoUsers: Record<string, User> = {
     { orgId: "pub-longhorn", orgName: "Longhorn Publishers", orgType: "publisher", role: "publisher" },
   ]),
   "254799000999": user("usr-admin", "SchoolShop Ops", "254799000999", ["platform_admin"], [
+    { orgId: "platform", orgName: "SchoolShop", orgType: "platform", role: "platform_admin" },
+  ]),
+  // Staff with narrower roles, for trying out access control.
+  "254711908765": user("usr-bursar", "Samuel Kiprop", "254711908765", ["school_admin"], [
+    { orgId: "sch-greenhill", orgName: "Greenhill Academy", orgType: "school", role: "school_admin" },
+  ]),
+  "254733200411": user("usr-teacher", "Mercy Achieng", "254733200411", ["teacher"], [
+    { orgId: "sch-greenhill", orgName: "Greenhill Academy", orgType: "school", role: "teacher" },
+  ]),
+  "254711222333": user("usr-warehouse", "Joseph Mwangi", "254711222333", ["publisher"], [
+    { orgId: "pub-longhorn", orgName: "Longhorn Publishers", orgType: "publisher", role: "publisher" },
+  ]),
+  "254722118844": user("usr-pubfinance", "Ann Njeri", "254722118844", ["publisher"], [
+    { orgId: "pub-longhorn", orgName: "Longhorn Publishers", orgType: "publisher", role: "publisher" },
+  ], "ann.njeri@longhorn.co.ke"),
+  "254799000111": user("usr-adminfinance", "Daniel Otieno", "254799000111", ["platform_admin"], [
+    { orgId: "platform", orgName: "SchoolShop", orgType: "platform", role: "platform_admin" },
+  ]),
+  "254799000222": user("usr-support", "Lilian Achieng", "254799000222", ["platform_admin"], [
     { orgId: "platform", orgName: "SchoolShop", orgType: "platform", role: "platform_admin" },
   ]),
 }

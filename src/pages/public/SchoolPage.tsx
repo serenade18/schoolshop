@@ -20,7 +20,7 @@ export function SchoolPage() {
       {(s) => (
         <>
           <section className="bg-paper">
-            <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-5 px-5 py-10">
+            <div className="mx-auto flex max-w-site flex-wrap items-end justify-between gap-5 px-5 lg:px-10 py-10">
               <div className="flex items-center gap-4.5">
                 <span aria-hidden className="flex size-18 items-center justify-center rounded-2xl bg-ink font-display text-3xl font-semibold text-sun">
                   {s.name[0]}
@@ -41,7 +41,7 @@ export function SchoolPage() {
               )}
             </div>
           </section>
-          <div className="mx-auto max-w-6xl px-5 pt-7 pb-16">
+          <div className="mx-auto max-w-site px-5 lg:px-10 pt-7 pb-16">
             <QueryBoundary query={lists}>
               {(data) =>
                 data.length ? (

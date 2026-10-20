@@ -23,33 +23,35 @@ function page<M extends Record<string, ComponentType>>(load: () => Promise<M>, n
 }
 
 const schoolNav: DashboardNavItem[] = [
-  { to: "/school", label: "Overview", end: true },
-  { to: "/school/booklists", label: "Booklists" },
-  { to: "/school/orders", label: "Parent orders" },
-  { to: "/school/deliveries", label: "Deliveries" },
-  { to: "/school/collection", label: "Collection" },
-  { to: "/school/students", label: "Classes & students" },
-  { to: "/school/settings", label: "Settings" },
+  { to: "/school", label: "Overview", end: true, permission: "overview.view" },
+  { to: "/school/booklists", label: "Booklists", permission: "booklists.manage" },
+  { to: "/school/orders", label: "Parent orders", permission: "orders.view" },
+  { to: "/school/deliveries", label: "Deliveries", permission: "deliveries.receive" },
+  { to: "/school/collection", label: "Collection", permission: "collection.handout" },
+  { to: "/school/students", label: "Classes & students", permission: "settings.manage" },
+  { to: "/school/staff", label: "Staff", permission: "staff.manage" },
+  { to: "/school/settings", label: "Settings", permission: "settings.manage" },
 ]
 
 const publisherNav: DashboardNavItem[] = [
-  { to: "/publisher", label: "School orders", end: true },
-  { to: "/publisher/catalog", label: "Catalog & stock" },
-  { to: "/publisher/dispatches", label: "Dispatches" },
-  { to: "/publisher/payouts", label: "Payouts" },
-  { to: "/publisher/settings", label: "Settings" },
+  { to: "/publisher", label: "School orders", end: true, permission: "orders.view" },
+  { to: "/publisher/catalog", label: "Catalog & stock", permission: "catalog.manage" },
+  { to: "/publisher/dispatches", label: "Dispatches", permission: "dispatch.manage" },
+  { to: "/publisher/payouts", label: "Payouts", permission: "payouts.view" },
+  { to: "/publisher/team", label: "Team", permission: "staff.manage" },
+  { to: "/publisher/settings", label: "Settings", permission: "settings.manage" },
 ]
 
 const adminNav: DashboardNavItem[] = [
-  { to: "/admin", label: "Overview", end: true },
-  { to: "/admin/organisations", label: "Schools & publishers", badge: 5 },
-  { to: "/admin/orders", label: "Orders" },
-  { to: "/admin/payments", label: "Payments & payouts" },
-  { to: "/admin/refunds", label: "Refunds & disputes" },
-  { to: "/admin/users", label: "Users & roles" },
-  { to: "/admin/catalog", label: "Catalog review" },
-  { to: "/admin/settings", label: "Fees & settings" },
-  { to: "/admin/audit", label: "Audit log" },
+  { to: "/admin", label: "Overview", end: true, permission: "overview.view" },
+  { to: "/admin/organisations", label: "Schools & publishers", badge: 5, permission: "orgs.view" },
+  { to: "/admin/orders", label: "Orders", permission: "orders.view" },
+  { to: "/admin/payments", label: "Payments & payouts", permission: "money.view" },
+  { to: "/admin/refunds", label: "Refunds & disputes", permission: "money.view" },
+  { to: "/admin/catalog", label: "Catalog review", permission: "catalog.review" },
+  { to: "/admin/settings", label: "Fees & settings", permission: "settings.fees" },
+  { to: "/admin/audit", label: "Audit log", permission: "audit.view" },
+  { to: "/admin/staff", label: "Staff & roles", permission: "staff.manage" },
 ]
 
 /** Placeholder routes for every nav entry that isn't built yet (index routes are handled separately). */
@@ -104,6 +106,7 @@ export const router = createBrowserRouter([
           { path: "booklists", lazy: page(() => import("@/pages/school/SchoolBooklistsPage"), "SchoolBooklistsPage") },
           { path: "booklists/:id", lazy: page(() => import("@/pages/school/SchoolBooklistBuilderPage"), "SchoolBooklistBuilderPage") },
           { path: "orders", lazy: page(() => import("@/pages/school/SchoolOrdersPage"), "SchoolOrdersPage") },
+          { path: "staff", lazy: page(() => import("@/pages/school/SchoolStaffPage"), "SchoolStaffPage") },
           { path: "collection", lazy: page(() => import("@/pages/school/SchoolCollectionPage"), "SchoolCollectionPage") },
           { path: "settings", lazy: page(() => import("@/pages/school/SchoolSettingsPage"), "SchoolSettingsPage") },
           { path: "deliveries", lazy: page(() => import("@/pages/school/SchoolDeliveriesPage"), "SchoolDeliveriesPage") },
@@ -124,6 +127,7 @@ export const router = createBrowserRouter([
           { path: "catalog", lazy: page(() => import("@/pages/publisher/PublisherCatalogPage"), "PublisherCatalogPage") },
           { path: "dispatches", lazy: page(() => import("@/pages/publisher/PublisherDispatchesPage"), "PublisherDispatchesPage") },
           { path: "payouts", lazy: page(() => import("@/pages/publisher/PublisherPayoutsPage"), "PublisherPayoutsPage") },
+          { path: "team", lazy: page(() => import("@/pages/publisher/PublisherTeamPage"), "PublisherTeamPage") },
           { path: "settings", lazy: page(() => import("@/pages/publisher/PublisherSettingsPage"), "PublisherSettingsPage") },
         ],
       },
@@ -135,7 +139,11 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout nav={adminNav} tone="dark" tag="ADMIN" />,
-        children: [{ index: true, lazy: page(() => import("@/pages/admin/AdminOverviewPage"), "AdminOverviewPage") }, ...comingSoon(adminNav, "/admin")],
+        children: [
+          { index: true, lazy: page(() => import("@/pages/admin/AdminOverviewPage"), "AdminOverviewPage") },
+          { path: "staff", lazy: page(() => import("@/pages/admin/AdminStaffPage"), "AdminStaffPage") },
+          ...comingSoon(adminNav.filter((n) => n.to !== "/admin/staff"), "/admin"),
+        ],
       },
     ],
   },

@@ -11,7 +11,7 @@ export function SchoolsPage() {
   const results = schools.data?.results ?? []
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-7 px-5 pt-8 pb-16">
+    <div className="mx-auto flex max-w-site flex-col gap-7 px-5 lg:px-10 pt-8 pb-16">
       <header className="max-w-2xl">
         <p className="mb-2 text-sm font-bold tracking-[0.08em] text-accent-text uppercase">Approved school lists</p>
         <h1 className="text-[clamp(30px,5vw,40px)] font-semibold tracking-tight">Find your child's school</h1>

@@ -60,7 +60,7 @@ export function HomePage() {
       </section>
 
       <section aria-label="Why SchoolShop" className="border-b">
-        <div className="mx-auto grid max-w-6xl gap-4 px-5 py-5.5 sm:grid-cols-3">
+        <div className="mx-auto grid max-w-site gap-4 px-5 lg:px-10 py-5.5 sm:grid-cols-3">
           {perks.map((p, i) => (
             <Reveal key={p.title} delay={i * 110} className="flex items-center gap-3">
               <span className="pop-in flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-light" aria-hidden>
@@ -75,7 +75,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="shop-categories-h" className="mx-auto max-w-6xl px-5 pt-14 pb-2">
+      <section aria-labelledby="shop-categories-h" className="mx-auto max-w-site px-5 lg:px-10 pt-14 pb-2">
         <Reveal className="mb-6 max-w-2xl">
           <h2 id="shop-categories-h" className="text-[clamp(26px,4vw,32px)] font-semibold">Shop your way</h2>
           <p className="mt-2 text-ink/80">Find your school's approved list or browse our central catalogue by grade, curriculum or product type.</p>
@@ -99,7 +99,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="popular-h" className="mx-auto max-w-6xl px-5 pt-10 pb-16">
+      <section aria-labelledby="popular-h" className="mx-auto max-w-site px-5 lg:px-10 pt-10 pb-16">
         <Reveal className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
           <h2 id="popular-h" className="text-[clamp(26px,4vw,32px)] font-semibold">Popular this term</h2>
           <Link to="/shop" className="py-2 text-[15px] font-semibold text-accent-text hover:underline">
@@ -116,7 +116,7 @@ export function HomePage() {
       </section>
 
       <section aria-labelledby="how-h" className="bg-teal text-white">
-        <div className="mx-auto max-w-6xl px-5 py-16">
+        <div className="mx-auto max-w-site px-5 lg:px-10 py-16">
           <Reveal>
             <h2 id="how-h" className="mb-8 text-[clamp(26px,4vw,32px)] font-semibold">How it works</h2>
           </Reveal>
@@ -132,7 +132,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-label="For schools and publishers" className="mx-auto grid max-w-6xl gap-5 px-5 py-16 md:grid-cols-2">
+      <section aria-label="For schools and publishers" className="mx-auto grid max-w-site gap-5 px-5 lg:px-10 py-16 md:grid-cols-2">
         <Reveal from="left" fill>
           <div className="flex flex-col items-start gap-3.5 rounded-3xl bg-teal-light p-8">
             <h2 className="text-[26px] font-semibold">For schools</h2>

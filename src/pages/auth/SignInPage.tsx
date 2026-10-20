@@ -34,8 +34,14 @@ const codeSchema = z.object({
 const demoAccounts = [
   { label: "Parent", id: "0712 345 678" },
   { label: "School admin", id: "grace@greenhill.ac.ke" },
-  { label: "Publisher", id: "0700 000 444" },
-  { label: "Platform admin", id: "0799 000 999" },
+  { label: "School bursar", id: "0711 908 765" },
+  { label: "Teacher (4 East, PP2 Rose)", id: "0733 200 411" },
+  { label: "Publisher admin", id: "0700 000 444" },
+  { label: "Publisher warehouse", id: "0711 222 333" },
+  { label: "Publisher finance", id: "ann.njeri@longhorn.co.ke" },
+  { label: "Platform super admin", id: "0799 000 999" },
+  { label: "Platform finance", id: "0799 000 111" },
+  { label: "Platform support", id: "0799 000 222" },
 ]
 
 const errorFor = (e: unknown, field: string, fallback: string) =>

@@ -1,12 +1,23 @@
-import { useState } from "react"
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router"
-import { LogOut, Menu, X } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router"
+import { Lock, LogOut, Menu, X } from "lucide-react"
 
 import { Logo } from "@/components/brand/Logo"
+import { Button } from "@/components/ui/button"
+import { ApiError } from "@/lib/api/client"
+import { useMe } from "@/lib/api/queries"
+import { useAccess } from "@/lib/useAccess"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/auth"
 
-export type DashboardNavItem = { to: string; label: string; end?: boolean; badge?: number }
+export type DashboardNavItem = {
+  to: string
+  label: string
+  end?: boolean
+  badge?: number
+  /** Hidden from roles without it; opening it anyway shows "no access". */
+  permission?: string
+}
 
 type DashboardLayoutProps = {
   /** Small tag next to the logo, e.g. "PUBLISHER". */
@@ -23,17 +34,25 @@ type DashboardLayoutProps = {
  * From lg the menu is a fixed sidebar. Below that it collapses into a top bar
  * with the current section's name and a menu button that opens the same nav.
  */
-export function DashboardLayout({ tag, tone = "light", nav, orgLabel }: DashboardLayoutProps) {
+export function DashboardLayout({ tag, tone = "light", nav: allNav, orgLabel }: DashboardLayoutProps) {
   const user = useAuthStore((s) => s.user)
   const signOut = useAuthStore((s) => s.signOut)
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const access = useAccess()
+  const me = useRefreshAccess()
+  // A session saved before roles existed has no permissions yet: wait for /me/ rather than flash "no access".
+  const ready = access.roleId !== "" || me.isFetched
+  const nav = allNav.filter((n) => !n.permission || access.can(n.permission))
   // The menu belongs to the page it was opened on, so navigating closes it.
   const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null)
   const menuOpen = menuOpenOn === pathname
   const dark = tone === "dark"
   const org = user?.memberships[0]
   const current = [...nav].reverse().find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))
+  // The page asked for, whether or not this role may open it.
+  const requested = [...allNav].reverse().find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))
+  const blocked = !!requested?.permission && !access.can(requested.permission)
   const alerts = nav.reduce((sum, n) => sum + (n.badge ?? 0), 0)
 
 
@@ -53,7 +72,9 @@ export function DashboardLayout({ tag, tone = "light", nav, orgLabel }: Dashboar
       {org && (
         <div className={cn("flex flex-col gap-0.5 rounded-xl p-3", dark ? "bg-white/10" : "bg-paper")}>
           <span className="text-[15px] font-semibold">{org.orgName}</span>
-          <span className={cn("text-[13px]", dark ? "text-white/75" : "text-muted-foreground")}>{orgLabel ?? user?.name}</span>
+          <span className={cn("text-[13px]", dark ? "text-white/75" : "text-muted-foreground")}>
+            {user?.name}{access.roleLabel ? ` · ${access.roleLabel}` : orgLabel ? ` · ${orgLabel}` : ""}
+          </span>
         </div>
       )}
       <nav aria-label="Dashboard" className="flex flex-col gap-0.5">
@@ -145,8 +166,45 @@ export function DashboardLayout({ tag, tone = "light", nav, orgLabel }: Dashboar
       </aside>
 
       <main className="flex min-w-0 grow flex-col gap-6 px-[clamp(16px,3vw,40px)] py-6 md:py-8">
-        <Outlet />
+        {!ready ? null : !blocked ? (
+          <Outlet />
+        ) : requested?.end && nav[0] ? (
+          // Landing on a home this role can't see: go to the first page it can.
+          <Navigate to={nav[0].to} replace />
+        ) : (
+          <NoAccess page={requested?.label ?? "This page"} role={access.roleLabel} fallback={nav[0]} />
+        )}
       </main>
     </div>
   )
+}
+
+function NoAccess({ page, role, fallback }: { page: string; role: string; fallback?: DashboardNavItem }) {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border bg-card px-6 py-12 text-center">
+      <span className="flex size-12 items-center justify-center rounded-full bg-secondary"><Lock className="size-5" aria-hidden /></span>
+      <h1 className="text-2xl font-semibold">{page} isn't part of your role</h1>
+      <p className="text-[15px] text-muted-foreground">
+        {role ? `As ${/^[aeiou]/i.test(role) ? "an" : "a"} ${role}, you` : "You"} don't have access to this page. If you need it, ask an admin to change your role.
+      </p>
+      {fallback && (
+        <Button asChild>
+          <Link to={fallback.to}>Go to {fallback.label}</Link>
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/** Re-reads the user's role and permissions from the API, so changes apply without signing in again. */
+function useRefreshAccess() {
+  const user = useAuthStore((s) => s.user)
+  const me = useMe(!!user)
+  useEffect(() => {
+    if (me.data && JSON.stringify(me.data) !== JSON.stringify(useAuthStore.getState().user)) useAuthStore.setState({ user: me.data })
+  }, [me.data])
+  useEffect(() => {
+    if (me.error instanceof ApiError && me.error.status === 403) useAuthStore.getState().signOut()
+  }, [me.error])
+  return me
 }

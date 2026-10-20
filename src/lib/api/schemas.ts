@@ -21,7 +21,14 @@ export const membershipSchema = z.object({
   orgName: z.string(),
   orgType: z.enum(["school", "publisher", "platform"]),
   role: roleSchema,
+  /** The staff role inside the organisation (see lib/access), e.g. "bursar". */
+  staffRole: z.string().default(""),
+  /** What this person may do there; the API enforces the same list. */
+  permissions: z.array(z.string()).default([]),
+  /** Teachers: the classes they hand out packs for. */
+  classNames: z.array(z.string()).default([]),
 })
+export type Membership = z.infer<typeof membershipSchema>
 
 export const userSchema = z.object({
   id: z.string(),
@@ -439,8 +446,6 @@ export const publisherPayoutsSchema = z.object({
 })
 export type PublisherPayouts = z.infer<typeof publisherPayoutsSchema>
 
-export const teamRoleSchema = z.enum(["admin", "warehouse", "finance"])
-export type TeamRole = z.infer<typeof teamRoleSchema>
 
 export const notificationEventSchema = z.enum(["batch_ready", "delivery_issue", "payout_sent", "low_stock", "weekly_summary"])
 export type NotificationEvent = z.infer<typeof notificationEventSchema>
@@ -456,22 +461,10 @@ export const publisherSettingsSchema = z.object({
     dispatchAddress: z.string(),
     county: z.string(),
   }),
-  team: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      /** Phone (2547…) or email the invite went to. */
-      contact: z.string(),
-      role: teamRoleSchema,
-      status: z.enum(["active", "invited"]),
-      isYou: z.boolean(),
-    })
-  ),
   /** Which channels each event is sent on. */
   notifications: z.record(notificationEventSchema, z.object({ sms: z.boolean(), email: z.boolean() })),
 })
 export type PublisherSettings = z.infer<typeof publisherSettingsSchema>
-export type TeamMember = PublisherSettings["team"][number]
 
 /** One paid order's pack, as the school hands it out. */
 export const collectionRowSchema = z.object({
@@ -491,8 +484,6 @@ export const collectionRowSchema = z.object({
 })
 export type CollectionRow = z.infer<typeof collectionRowSchema>
 
-export const schoolStaffRoleSchema = z.enum(["school_admin", "bursar", "teacher"])
-export type SchoolStaffRole = z.infer<typeof schoolStaffRoleSchema>
 
 export const schoolSettingsSchema = z.object({
   profile: z.object({
@@ -513,22 +504,8 @@ export const schoolSettingsSchema = z.object({
     smsWhenAtSchool: z.boolean(),
     collectionPoint: z.enum(["class_teacher", "school_office"]),
   }),
-  team: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      contact: z.string(),
-      role: schoolStaffRoleSchema,
-      /** Teachers hand out packs for these classes only. */
-      classNames: z.array(z.string()),
-      status: z.enum(["active", "invited"]),
-      isYou: z.boolean(),
-    })
-  ),
-  classNames: z.array(z.string()),
 })
 export type SchoolSettings = z.infer<typeof schoolSettingsSchema>
-export type SchoolStaff = SchoolSettings["team"][number]
 
 export const accountSchema = z.object({
   name: z.string(),
@@ -546,6 +523,28 @@ export const accountSchema = z.object({
   }),
 })
 export type Account = z.infer<typeof accountSchema>
+
+export const staffMemberSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  /** Phone (2547…) or email the invite went to. */
+  contact: z.string(),
+  role: z.string(),
+  classNames: z.array(z.string()),
+  status: z.enum(["active", "invited", "suspended"]),
+  isYou: z.boolean(),
+  lastActiveAt: isoDateTime.nullable(),
+})
+export type StaffMember = z.infer<typeof staffMemberSchema>
+
+export const staffDirectorySchema = z.object({
+  members: z.array(staffMemberSchema),
+  /** Most recent first: who changed what. */
+  activity: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+  /** Schools only: classes a teacher can be given. */
+  classNames: z.array(z.string()),
+})
+export type StaffDirectory = z.infer<typeof staffDirectorySchema>
 
 export const adminOverviewSchema = z.object({
   termName: z.string(),

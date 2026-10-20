@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { BadgeCheck, Lock, Mail, Smartphone, Trash2, UserPlus } from "lucide-react"
+import { BadgeCheck, Lock } from "lucide-react"
 import { z } from "zod"
 
 import { PageHeader } from "@/components/common/PageHeader"
@@ -9,29 +9,20 @@ import { QueryBoundary } from "@/components/common/QueryBoundary"
 import { ChangePasswordSection, Saved, SectionChips, SettingsSection } from "@/components/settings/SettingsSection"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { NativeSelect } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ApiError } from "@/lib/api/client"
 import * as endpoints from "@/lib/api/endpoints"
 import { useSchoolSettings, useSchoolSettingsMutation } from "@/lib/api/queries"
-import type { SchoolSettings, SchoolStaff, SchoolStaffRole } from "@/lib/api/schemas"
-import { formatDayLong, normaliseIdentifier, normaliseKenyanPhone } from "@/lib/format"
+import type { SchoolSettings } from "@/lib/api/schemas"
+import { formatDayLong, normaliseKenyanPhone } from "@/lib/format"
 import { counties, errorText, showContact } from "@/lib/settings"
-
-const roles: Record<SchoolStaffRole, { label: string; can: string }> = {
-  school_admin: { label: "Admin", can: "Everything, including booklists, staff and settings" },
-  bursar: { label: "Bursar", can: "Parent orders, payments and refunds" },
-  teacher: { label: "Teacher", can: "Hands out packs for their own classes" },
-}
 
 const sections = [
   { id: "school", label: "School" },
   { id: "parents", label: "Parents & collection" },
-  { id: "staff", label: "Staff" },
   { id: "security", label: "Security" },
 ]
 
@@ -46,7 +37,6 @@ export function SchoolSettingsPage() {
           <div className="flex max-w-4xl flex-col gap-6">
             <SchoolSection data={data} />
             <ParentsSection value={data.parents} />
-            <StaffSection team={data.team} classNames={data.classNames} />
             <ChangePasswordSection description="Your own sign-in. Each staff member has their own password." />
           </div>
         )}
@@ -205,204 +195,5 @@ function ParentsSection({ value }: { value: SchoolSettings["parents"] }) {
         <Saved show={save.isSuccess && !dirty} />
       </div>
     </SettingsSection>
-  )
-}
-
-/* ── Staff ───────────────────────────────────────────────────── */
-
-function StaffSection({ team, classNames }: { team: SchoolStaff[]; classNames: string[] }) {
-  const [inviting, setInviting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<string | null>(null)
-  const update = useSchoolSettingsMutation(({ id, ...input }: { id: string; role?: SchoolStaffRole; classNames?: string[] }) => endpoints.updateSchoolStaff(id, input))
-  const remove = useSchoolSettingsMutation(endpoints.removeSchoolStaff)
-
-  return (
-    <SettingsSection
-      id="staff"
-      title="Staff"
-      description="Everyone at the school who uses SchoolShop."
-      action={!inviting && <Button variant="outline" onClick={() => setInviting(true)}><UserPlus aria-hidden /> Invite</Button>}
-    >
-      {inviting && <InviteForm classNames={classNames} onDone={() => setInviting(false)} />}
-      {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
-      <ul className="flex flex-col divide-y rounded-xl border">
-        {team.map((m) => (
-          <li key={m.id} className="flex flex-col gap-3 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <span className="flex min-w-0 grow items-center gap-3">
-                <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-light font-display font-semibold text-teal">
-                  {m.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="flex flex-wrap items-center gap-2 font-semibold">
-                    {m.name}
-                    {m.isYou && <Badge variant="secondary">You</Badge>}
-                    {m.status === "invited" && <Badge variant="warning">Invite sent</Badge>}
-                  </span>
-                  <span className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
-                    {m.contact.includes("@") ? <Mail className="size-3.5 shrink-0" aria-hidden /> : <Smartphone className="size-3.5 shrink-0" aria-hidden />}
-                    {showContact(m.contact)}
-                  </span>
-                </span>
-              </span>
-              <span className="flex items-center gap-2 sm:shrink-0">
-                <span className="grow sm:w-36 sm:grow-0">
-                  <NativeSelect
-                    aria-label={`Role for ${m.name}`}
-                    value={m.role}
-                    disabled={m.isYou || update.isPending}
-                    onChange={(e) => {
-                      setError(null)
-                      const role = e.target.value as SchoolStaffRole
-                      update.mutate({ id: m.id, role }, { onSuccess: () => role === "teacher" && setEditing(m.id), onError: (err) => setError(errorText(err, "role")) })
-                    }}
-                    className="h-11"
-                  >
-                    {(Object.keys(roles) as SchoolStaffRole[]).map((r) => <option key={r} value={r}>{roles[r].label}</option>)}
-                  </NativeSelect>
-                </span>
-                {!m.isYou && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove ${m.name}`}
-                    disabled={remove.isPending}
-                    onClick={() => {
-                      if (!window.confirm(`Remove ${m.name}? They lose access straight away.`)) return
-                      setError(null)
-                      remove.mutate(m.id, { onError: (err) => setError(errorText(err)) })
-                    }}
-                  >
-                    <Trash2 aria-hidden />
-                  </Button>
-                )}
-              </span>
-            </div>
-            {m.role === "teacher" && (
-              editing === m.id ? (
-                <ClassPicker
-                  idPrefix={`cls-${m.id}`}
-                  all={classNames}
-                  initial={m.classNames}
-                  label={`Classes for ${m.name}`}
-                  saving={update.isPending}
-                  onCancel={() => setEditing(null)}
-                  onSave={(picked) => update.mutate({ id: m.id, classNames: picked }, { onSuccess: () => setEditing(null), onError: (err) => setError(errorText(err, "classNames")) })}
-                />
-              ) : (
-                <div className="flex flex-wrap items-center gap-2 pl-13 text-sm">
-                  <span className="text-muted-foreground">Hands out packs for</span>
-                  {m.classNames.length ? m.classNames.map((c) => <Badge key={c} variant="secondary">{c}</Badge>) : <span className="font-semibold text-warn-fg">no classes yet</span>}
-                  <Button variant="link" className="h-auto px-1" onClick={() => setEditing(m.id)}>Change classes</Button>
-                </div>
-              )
-            )}
-          </li>
-        ))}
-      </ul>
-      <dl className="grid gap-3 text-sm sm:grid-cols-3">
-        {(Object.keys(roles) as SchoolStaffRole[]).map((r) => (
-          <div key={r} className="flex flex-col gap-0.5 rounded-xl bg-paper p-3">
-            <dt className="font-semibold">{roles[r].label}</dt>
-            <dd className="text-muted-foreground">{roles[r].can}</dd>
-          </div>
-        ))}
-      </dl>
-    </SettingsSection>
-  )
-}
-
-function ClassPicker({ idPrefix, all, initial, label, saving, onSave, onCancel }: { idPrefix: string; all: string[]; initial: string[]; label: string; saving?: boolean; onSave: (picked: string[]) => void; onCancel?: () => void }) {
-  const [picked, setPicked] = useState(initial)
-  return (
-    <fieldset className="flex flex-col gap-3 rounded-xl bg-paper p-3.5">
-      <legend className="sr-only">{label}</legend>
-      <ClassBoxes idPrefix={idPrefix} all={all} picked={picked} onChange={setPicked} />
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => onSave(picked)} disabled={saving || picked.length === 0}>Save classes</Button>
-        {onCancel && <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>}
-      </div>
-    </fieldset>
-  )
-}
-
-function ClassBoxes({ idPrefix, all, picked, onChange }: { idPrefix: string; all: string[]; picked: string[]; onChange: (p: string[]) => void }) {
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-x-3 gap-y-1">
-      {all.map((c) => {
-        const id = `${idPrefix}-${c.replace(/\s+/g, "-")}`
-        return (
-          <label key={c} htmlFor={id} className="flex min-h-10 cursor-pointer items-center gap-2 text-sm font-medium">
-            <Checkbox id={id} checked={picked.includes(c)} onCheckedChange={(on) => onChange(on ? [...picked, c] : picked.filter((x) => x !== c))} />
-            {c}
-          </label>
-        )
-      })}
-    </div>
-  )
-}
-
-const inviteSchema = z.object({
-  name: z.string().trim().min(2, "Enter their name"),
-  contact: z.string().trim().refine((v) => normaliseIdentifier(v) !== null, "Enter a Kenyan mobile number or an email"),
-  role: z.enum(["school_admin", "bursar", "teacher"]),
-})
-type InviteValues = z.infer<typeof inviteSchema>
-
-function InviteForm({ classNames, onDone }: { classNames: string[]; onDone: () => void }) {
-  const form = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { name: "", contact: "", role: "teacher" } })
-  const [picked, setPicked] = useState<string[]>([])
-  const [classError, setClassError] = useState<string | null>(null)
-  const invite = useSchoolSettingsMutation(endpoints.inviteSchoolStaff)
-  const [contact, role] = useWatch({ control: form.control, name: ["contact", "role"] })
-  return (
-    <Form {...form}>
-      <form
-        noValidate
-        className="flex flex-col gap-4 rounded-xl border-2 border-primary/30 bg-teal-light/40 p-4"
-        onSubmit={form.handleSubmit((v) => {
-          if (v.role === "teacher" && picked.length === 0) return setClassError("Choose at least one class for this teacher.")
-          setClassError(null)
-          invite.mutate(
-            { ...v, contact: normaliseIdentifier(v.contact)!, classNames: v.role === "teacher" ? picked : [] },
-            {
-              onSuccess: onDone,
-              onError: (e) => form.setError(e instanceof ApiError && e.fieldErrors.contact ? "contact" : "root", { message: errorText(e, "contact") }),
-            }
-          )
-        })}
-      >
-        <h3 className="font-semibold">Invite someone</h3>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="contact" render={({ field }) => (
-            <FormItem><FormLabel>Phone or email</FormLabel><FormControl><Input placeholder="0711 222 333" {...field} /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="role" render={({ field }) => (
-            <FormItem><FormLabel>Role</FormLabel><FormControl>
-              <NativeSelect {...field}>{(Object.keys(roles) as SchoolStaffRole[]).map((r) => <option key={r} value={r}>{roles[r].label}</option>)}</NativeSelect>
-            </FormControl><FormMessage /></FormItem>
-          )} />
-        </div>
-        {role === "teacher" && (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-semibold">Their classes</legend>
-            <ClassBoxes idPrefix="invite-cls" all={classNames} picked={picked} onChange={setPicked} />
-            {classError && <p role="alert" className="text-sm font-medium text-destructive">{classError}</p>}
-          </fieldset>
-        )}
-        <p className="text-sm text-muted-foreground">
-          We'll send them {contact.includes("@") ? "an email" : "an SMS"} with a link to set up their account.
-        </p>
-        {form.formState.errors.root && <p role="alert" className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>}
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={invite.isPending}>{invite.isPending ? "Sending…" : "Send invite"}</Button>
-          <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
-        </div>
-      </form>
-    </Form>
   )
 }

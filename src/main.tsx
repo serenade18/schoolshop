@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router"
 
 import { router } from "@/app/router"
 import { ApiError } from "@/lib/api/client"
+import { useAuthStore } from "@/stores/auth"
 
 import "./index.css"
 
@@ -16,6 +17,11 @@ const queryClient = new QueryClient({
       retry: (count, error) => count < 1 && !(error instanceof ApiError && error.status !== null && error.status < 500),
     },
   },
+})
+
+// Someone else signing in on this device must never see the last person's data.
+useAuthStore.subscribe((state, prev) => {
+  if (state.user?.id !== prev.user?.id) queryClient.clear()
 })
 
 createRoot(document.getElementById("root")!).render(
