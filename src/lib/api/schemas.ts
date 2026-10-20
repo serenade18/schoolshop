@@ -77,6 +77,8 @@ export const booklistItemSchema = z.object({
   unitPriceCents: cents,
   qtyPerStudent: z.number().int().positive(),
   required: z.boolean(),
+  /** The teacher's note to parents, e.g. "Last year's copy is fine if it's in good condition". */
+  note: z.string().nullable().default(null),
 })
 export type BooklistItem = z.infer<typeof booklistItemSchema>
 
@@ -255,6 +257,81 @@ export const schoolOverviewSchema = z.object({
   ),
 })
 export type SchoolOverview = z.infer<typeof schoolOverviewSchema>
+
+/** One row per enrolled student, whether or not their parent has ordered. */
+export const studentOrderRowSchema = z.object({
+  studentId: z.string(),
+  studentName: z.string(),
+  admissionNo: z.string(),
+  gradeName: z.string(),
+  className: z.string(),
+  parentName: z.string().nullable(),
+  /** Masked ("0712 ••• 678"); SchoolShop sends reminders, the school never sees the full number. */
+  parentPhone: z.string().nullable(),
+  order: z
+    .object({
+      id: z.string(),
+      number: z.string(),
+      status: orderStatusSchema,
+      totalCents: cents,
+      itemCount: z.number().int(),
+      paidAt: isoDateTime.nullable(),
+    })
+    .nullable(),
+  remindedAt: isoDateTime.nullable(),
+})
+export type StudentOrderRow = z.infer<typeof studentOrderRowSchema>
+
+export const schoolOrdersSchema = z.object({
+  termName: z.string(),
+  orderDeadline: isoDate,
+  rows: z.array(studentOrderRowSchema),
+})
+export type SchoolOrders = z.infer<typeof schoolOrdersSchema>
+
+export const schoolOrderDetailSchema = orderSchema.extend({
+  admissionNo: z.string(),
+  parentName: z.string().nullable(),
+  parentPhone: z.string().nullable(),
+})
+export type SchoolOrderDetail = z.infer<typeof schoolOrderDetailSchema>
+
+export const remindResultSchema = z.object({ sent: z.number().int(), skipped: z.number().int() })
+
+export const deliveryIssueSchema = z.enum(["damaged", "wrong_items"])
+
+/** One publisher's delivery to the school for the term: every pack for every class, in one drop. */
+export const schoolDeliverySchema = z.object({
+  id: z.string(),
+  publisherName: z.string(),
+  status: shipmentStatusSchema,
+  packs: z.number().int(),
+  expectedAt: isoDate.nullable(),
+  classes: z.array(z.object({ className: z.string(), expected: z.number().int(), received: z.number().int().nullable() })),
+  dispatch: z
+    .object({
+      deliveryNoteNo: z.string(),
+      carrier: z.string(),
+      driverName: z.string(),
+      driverPhone: z.string(),
+      vehicleReg: z.string(),
+      cartons: z.number().int(),
+      dispatchedAt: isoDateTime,
+    })
+    .nullable(),
+  receipt: z
+    .object({
+      receivedAt: isoDateTime,
+      receivedBy: z.string(),
+      packsReceived: z.number().int(),
+      issues: z.array(deliveryIssueSchema),
+      notes: z.string(),
+      /** Read out to the driver as proof of delivery. */
+      signOffCode: z.string(),
+    })
+    .nullable(),
+})
+export type SchoolDelivery = z.infer<typeof schoolDeliverySchema>
 
 export const schoolBatchSchema = z.object({
   id: z.string(),

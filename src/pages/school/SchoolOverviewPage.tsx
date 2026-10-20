@@ -97,7 +97,7 @@ export function SchoolOverviewPage() {
                         </span>
                         {d.status === "dispatched" ? (
                           <Button asChild size="sm" variant="outline">
-                            <Link to="/school/deliveries">Receive</Link>
+                            <Link to={`/school/deliveries/${d.id}`}>Receive</Link>
                           </Button>
                         ) : (
                           <ShipmentStatusBadge status={d.status} />

@@ -3,7 +3,7 @@ import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { Link, useNavigate } from "react-router"
-import { BookOpen, School, Smartphone, Users } from "lucide-react"
+import { Smartphone } from "lucide-react"
 import { z } from "zod"
 
 import { CodeInput, ResendCode } from "@/components/auth/CodeInput"
@@ -19,7 +19,6 @@ import { ApiError } from "@/lib/api/client"
 import { registerParent, resendRegistrationCode, verifyRegistration } from "@/lib/api/endpoints"
 import { normaliseKenyanPhone } from "@/lib/format"
 import { newPasswordSchema } from "@/lib/password"
-import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/auth"
 
 const signUpSchema = z.object({
@@ -30,12 +29,6 @@ const signUpSchema = z.object({
 })
 
 const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code from the SMS") })
-
-const roles = [
-  { id: "parent", label: "Parent", hint: "Buy school lists", icon: Users, to: null },
-  { id: "school", label: "School", hint: "Publish lists", icon: School, to: "/register?type=school" },
-  { id: "publisher", label: "Publisher", hint: "Supply books", icon: BookOpen, to: "/register?type=publisher" },
-] as const
 
 const errorFor = (e: unknown, field: string, fallback: string) =>
   e instanceof ApiError ? (e.fieldErrors[field]?.[0] ?? e.message) : fallback
@@ -66,7 +59,6 @@ export function SignUpPage() {
 }
 
 function DetailsStep({ onSent }: { onSent: (phone: string, destination: string) => void }) {
-  const navigate = useNavigate()
   const form = useForm<z.input<typeof signUpSchema>, unknown, z.output<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { name: "", phone: "", password: "", terms: false as unknown as true },
@@ -95,33 +87,6 @@ function DetailsStep({ onSent }: { onSent: (phone: string, destination: string) 
         })}
       >
         <AuthHeading title="Create your account">It takes a minute. You'll use it to buy your child's school list.</AuthHeading>
-
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-semibold">I am a</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {roles.map(({ id, label, hint, icon: Icon, to }) => {
-              const on = id === "parent"
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => to && navigate(to)}
-                  className={cn(
-                    "flex min-w-0 flex-col items-start gap-1.5 rounded-2xl p-3 text-left transition-colors",
-                    on ? "border-2 border-teal bg-teal-light" : "border bg-surface hover:bg-paper"
-                  )}
-                >
-                  <span className={cn("flex size-8 items-center justify-center rounded-[10px]", on ? "bg-sun" : "bg-secondary")}>
-                    <Icon className="size-4.5" aria-hidden />
-                  </span>
-                  <span className="text-sm font-bold">{label}</span>
-                  <span className="text-xs leading-tight text-muted-foreground">{hint}</span>
-                </button>
-              )
-            })}
-          </div>
-        </fieldset>
 
         <FormField
           control={form.control}

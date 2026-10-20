@@ -41,6 +41,10 @@ const admins = () => settings.team.filter((m) => m.role === "admin" && m.status 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
 
+const schoolRows = db.schoolOrderRows.map((r) => structuredClone(r))
+const schoolOrders = new Map(db.schoolOrderDetails.map((o) => [o.id, structuredClone(o)]))
+const schoolDeliveries = new Map(db.schoolDeliveries.map((d) => [d.id, structuredClone(d)]))
+
 const orders = new Map(db.orders.map((o) => [o.id, structuredClone(o)]))
 const payments = new Map<string, Payment & { checks: number }>()
 let orderSeq = 20430
@@ -228,8 +232,65 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     return strip(p)
   }],
 
-  ["get", "/school/overview/", () => db.schoolOverview],
+  ["get", "/school/overview/", () => {
+    const deliveries = [...schoolDeliveries.values()]
+    return {
+      ...db.schoolOverview,
+      deliveriesReceived: deliveries.filter((d) => d.status === "received").length,
+      deliveries: deliveries.map((d) => ({ id: d.id, publisherName: d.publisherName, packs: d.packs, status: d.status, date: d.receipt?.receivedAt.slice(0, 10) ?? d.expectedAt })),
+    }
+  }],
   ["get", "/school/booklists/", () => db.booklists.map(db.summarise)],
+  ["get", "/school/deliveries/", () => [...schoolDeliveries.values()]],
+  ["get", "/school/deliveries/:id/", ({ params }) => schoolDeliveries.get(params.id) ?? raise(notFound())],
+  ["post", "/school/deliveries/:id/receive/", ({ params, body, userId }) => {
+    const delivery = schoolDeliveries.get(params.id) ?? raise(notFound())
+    if (delivery.status !== "dispatched") throw new HttpError(409, { detail: "This delivery isn't on its way, so it can't be received yet." })
+    const counts = new Map(((body.classes as { className: string; received: number }[] | undefined) ?? []).map((c) => [c.className, c.received]))
+    for (const c of delivery.classes) {
+      const n = counts.get(c.className)
+      if (n === undefined || !Number.isInteger(n) || n < 0) throw new HttpError(400, { classes: [`Enter how many packs arrived for ${c.className}.`] })
+      if (n > c.expected) throw new HttpError(400, { classes: [`${c.className} has more packs than were sent. Check the labels: a pack may belong to another class.`] })
+    }
+    const packsReceived = delivery.classes.reduce((t, c) => t + counts.get(c.className)!, 0)
+    if (packsReceived === 0) throw new HttpError(400, { classes: ["Nothing counted. If the delivery didn't arrive, don't confirm it."] })
+    const issues = ((body.issues as string[] | undefined) ?? []).filter((i): i is "damaged" | "wrong_items" => i === "damaged" || i === "wrong_items")
+    const notes = String(body.notes ?? "").trim()
+    if ((issues.length > 0 || packsReceived < delivery.packs) && !notes) throw new HttpError(400, { notes: [`Tell ${delivery.publisherName} what's wrong so they can fix it.`] })
+    const user = Object.values(db.demoUsers).find((u) => u.id === userId)
+    Object.assign(delivery, {
+      status: "received",
+      classes: delivery.classes.map((c) => ({ ...c, received: counts.get(c.className)! })),
+      receipt: { receivedAt: new Date().toISOString().replace("Z", "+00:00"), receivedBy: user?.name ?? "School admin", packsReceived, issues, notes, signOffCode: String(1000 + Math.floor(Math.random() * 9000)) },
+    })
+    // Parents' orders: this publisher's part is now at school; once every part is, the order is ready to collect.
+    for (const order of schoolOrders.values()) {
+      const shipment = order.shipments.find((sh) => sh.publisherName === delivery.publisherName)
+      if (!shipment || order.status !== "in_fulfilment") continue
+      shipment.status = "received"
+      if (order.shipments.every((sh) => sh.status === "received")) {
+        order.status = "at_school"
+        const row = schoolRows.find((r) => r.order?.id === order.id)
+        if (row?.order) row.order.status = "at_school"
+      }
+    }
+    return delivery
+  }],
+  ["get", "/school/orders/", () => ({ termName: db.schoolOverview.termName, orderDeadline: db.schoolOverview.orderDeadline, rows: schoolRows })],
+  ["get", "/school/orders/:id/", ({ params }) => schoolOrders.get(params.id) ?? raise(notFound())],
+  ["post", "/school/orders/remind/", ({ body }) => {
+    const ids = new Set((body.studentIds as string[] | undefined) ?? [])
+    if (ids.size === 0) throw new HttpError(400, { studentIds: ["Choose at least one student."] })
+    const dayAgo = Date.now() - 86_400_000
+    let sent = 0, skipped = 0
+    for (const row of schoolRows) {
+      if (!ids.has(row.studentId)) continue
+      const paid = row.order && !["pending_payment", "payment_failed"].includes(row.order.status)
+      if (paid || !row.parentPhone || (row.remindedAt && Date.parse(row.remindedAt) > dayAgo)) skipped++
+      else { row.remindedAt = new Date().toISOString(); sent++ }
+    }
+    return { sent, skipped }
+  }],
   ["get", "/publisher/batches/", () => [...batches.values()]],
   ["post", "/publisher/batches/:id/dispatch/", ({ params, body }) => {
     const batch = batches.get(params.id) ?? raise(notFound())
