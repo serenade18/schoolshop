@@ -167,18 +167,18 @@ function Receive({ delivery }: { delivery: SchoolDelivery }) {
               </dl>
             </section>
           )}
-          <section className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
-            <span className="text-sm text-muted-foreground">Received</span>
-            <span className="font-display text-[28px] leading-tight font-semibold">
-              {total} <span className="text-base font-medium text-muted-foreground">of {delivery.packs}</span>
+          <section className="flex flex-col gap-3 rounded-2xl bg-ink p-5 text-white">
+            <span className="text-sm text-line-strong">Received</span>
+            <span className="font-display text-[34px] leading-tight font-semibold">
+              {total} <span className="text-lg font-medium text-line-strong">of {delivery.packs}</span>
             </span>
             {missing > 0 && (
-              <p className="rounded-xl bg-warn-bg p-3 text-sm text-warn-fg">
+              <p className="text-sm font-semibold text-sun">
                 {missing} pack{missing === 1 ? "" : "s"} missing ({shortClasses.map((c) => c.className).join(", ")}). A claim opens automatically.
               </p>
             )}
-            {errors.root && <p role="alert" className="text-sm text-destructive">{errors.root}</p>}
-            <Button size="lg" onClick={submit} disabled={!canReceive || receive.isPending}>
+            {errors.root && <p role="alert" className="text-sm font-semibold text-sun">{errors.root}</p>}
+            <Button size="lg" onClick={submit} disabled={!canReceive || receive.isPending} className="h-13 bg-sun text-base font-bold text-ink hover:bg-sun/90">
               {receive.isPending
                 ? "Confirming…"
                 : !allCounted
@@ -187,7 +187,7 @@ function Receive({ delivery }: { delivery: SchoolDelivery }) {
                     ? `Confirm ${total} received, report shortage`
                     : `Confirm all ${delivery.packs} received`}
             </Button>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[13px] leading-snug text-line-strong">
               Confirming tells parents the packs are at school and releases {delivery.publisherName}'s payment for the packs received.
             </p>
           </section>
@@ -229,11 +229,11 @@ function Received({ delivery }: { delivery: SchoolDelivery }) {
           <span className="flex items-center gap-2 font-semibold text-success-fg">
             <CheckCircle2 className="size-5" aria-hidden /> {r.packsReceived} of {delivery.packs} packs received
           </span>
-          <div className="flex flex-col gap-2 rounded-2xl bg-teal-light p-5">
-            <span className="flex items-center gap-2 text-sm font-semibold text-accent-text">
+          <div className="flex flex-col gap-2 rounded-2xl bg-ink p-5 text-white">
+            <span className="flex items-center gap-2 text-sm text-line-strong">
               <ShieldCheck className="size-4" aria-hidden /> Give the driver this sign-off code
             </span>
-            <span className="font-display text-5xl font-semibold tracking-[0.2em] text-accent-text">{r.signOffCode}</span>
+            <span className="font-display text-5xl font-semibold tracking-[0.2em]">{r.signOffCode}</span>
           </div>
           <p className="text-sm text-muted-foreground">
             {short > 0 || r.issues.length > 0
