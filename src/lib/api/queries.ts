@@ -123,6 +123,41 @@ export const usePaymentStatus = (id: string | null) => {
 export const useSchoolOverview = () =>
   useQuery({ queryKey: queryKeys.schoolOverview, queryFn: endpoints.getSchoolOverview })
 
+export const useMyBooklists = () => useQuery({ queryKey: queryKeys.myBooklists, queryFn: endpoints.listMyBooklists })
+
+export const useSchoolCatalog = (search: string, category: string) =>
+  useQuery({
+    queryKey: ["school-catalog", search, category],
+    queryFn: () => endpoints.searchSchoolCatalog(search, category),
+    placeholderData: (prev) => prev,
+  })
+
+export const useCreateBooklist = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.createBooklist,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.myBooklists }),
+  })
+}
+
+/** Save the list, and publish it too when asked. Keeps the list, index and overview in step. */
+export const useSaveBooklist = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, input, publish }: { id: string; input: endpoints.BooklistInput; publish?: boolean }) => {
+      const saved = await endpoints.saveBooklist(id, input)
+      return publish ? endpoints.publishBooklist(id) : saved
+    },
+    onSuccess: (list) => {
+      qc.setQueryData(queryKeys.booklist(list.id), list)
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.myBooklists }),
+        qc.invalidateQueries({ queryKey: queryKeys.schoolOverview }),
+      ])
+    },
+  })
+}
+
 export const useSchoolDeliveries = () =>
   useQuery({ queryKey: queryKeys.schoolDeliveries, queryFn: endpoints.listSchoolDeliveries })
 

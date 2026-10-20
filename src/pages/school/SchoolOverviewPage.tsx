@@ -29,7 +29,7 @@ export function SchoolOverviewPage() {
                 <>
                   <Button variant="outline">Share list link with parents</Button>
                   <Button asChild>
-                    <Link to="/school/booklists">New booklist</Link>
+                    <Link to="/school/booklists?new">New booklist</Link>
                   </Button>
                 </>
               }

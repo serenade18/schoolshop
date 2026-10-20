@@ -6,7 +6,6 @@ import {
   adminOverviewSchema,
   authTokensSchema,
   booklistSchema,
-  booklistSummarySchema,
   catalogItemSchema,
   childSchema,
   codeSentSchema,
@@ -21,6 +20,8 @@ import {
   productSchema,
   remindResultSchema,
   schoolBatchSchema,
+  schoolBooklistsSchema,
+  schoolCatalogItemSchema,
   schoolDeliverySchema,
   schoolOrderDetailSchema,
   schoolOrdersSchema,
@@ -111,7 +112,21 @@ export const getPayment = (id: string) => get(`/payments/${id}/`, paymentSchema)
 
 // School
 export const getSchoolOverview = () => get("/school/overview/", schoolOverviewSchema)
-export const listMyBooklists = () => get("/school/booklists/", z.array(booklistSummarySchema))
+export const listMyBooklists = () => get("/school/booklists/", schoolBooklistsSchema)
+export const createBooklist = (gradeName: string) => post("/school/booklists/", booklistSchema, { gradeName })
+export type BooklistInput = {
+  orderDeadline: string
+  deliverBy: string
+  items: { productId: string; required: boolean; qtyPerStudent: number; note: string | null }[]
+}
+export const saveBooklist = async (id: string, input: BooklistInput) => {
+  const { data } = await api.put(`/school/booklists/${id}/`, input)
+  return booklistSchema.parse(data)
+}
+/** Publishing SMSes the parents of every student in the grade's classes. */
+export const publishBooklist = (id: string) => post(`/school/booklists/${id}/publish/`, booklistSchema)
+export const searchSchoolCatalog = (search: string, category: string) =>
+  get("/school/catalog/", z.array(schoolCatalogItemSchema), { search, category })
 export const listSchoolDeliveries = () => get("/school/deliveries/", z.array(schoolDeliverySchema))
 export const getSchoolDelivery = (id: string) => get(`/school/deliveries/${id}/`, schoolDeliverySchema)
 export type ReceiveInput = {

@@ -101,10 +101,12 @@ export const router = createBrowserRouter([
         element: <DashboardLayout nav={schoolNav} orgLabel="School admin" />,
         children: [
           { index: true, lazy: page(() => import("@/pages/school/SchoolOverviewPage"), "SchoolOverviewPage") },
+          { path: "booklists", lazy: page(() => import("@/pages/school/SchoolBooklistsPage"), "SchoolBooklistsPage") },
+          { path: "booklists/:id", lazy: page(() => import("@/pages/school/SchoolBooklistBuilderPage"), "SchoolBooklistBuilderPage") },
           { path: "orders", lazy: page(() => import("@/pages/school/SchoolOrdersPage"), "SchoolOrdersPage") },
           { path: "deliveries", lazy: page(() => import("@/pages/school/SchoolDeliveriesPage"), "SchoolDeliveriesPage") },
           { path: "deliveries/:id", lazy: page(() => import("@/pages/school/SchoolReceiveDeliveryPage"), "SchoolReceiveDeliveryPage") },
-          ...comingSoon(schoolNav.filter((n) => !["/school/orders", "/school/deliveries"].includes(n.to)), "/school"),
+          ...comingSoon(schoolNav.filter((n) => !["/school/booklists", "/school/orders", "/school/deliveries"].includes(n.to)), "/school"),
         ],
       },
     ],

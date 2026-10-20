@@ -101,6 +101,35 @@ export const booklistSummarySchema = booklistSchema
   .extend({ itemCount: z.number().int(), requiredTotalCents: cents })
 export type BooklistSummary = z.infer<typeof booklistSummarySchema>
 
+/** A grade at the school, whether or not it has a booklist yet. */
+export const schoolGradeSchema = z.object({
+  gradeName: z.string(),
+  classNames: z.array(z.string()),
+  students: z.number().int(),
+})
+export type SchoolGrade = z.infer<typeof schoolGradeSchema>
+
+export const schoolBooklistsSchema = z.object({
+  termName: z.string(),
+  lists: z.array(booklistSummarySchema.extend({ ordered: z.number().int(), students: z.number().int() })),
+  /** Grades that have no list this term yet. */
+  gradesWithoutList: z.array(schoolGradeSchema),
+})
+export type SchoolBooklists = z.infer<typeof schoolBooklistsSchema>
+
+/** A title a school can put on a list: every live publisher title, plus stationery. */
+export const schoolCatalogItemSchema = z.object({
+  productId: z.string(),
+  title: z.string(),
+  publisherName: z.string(),
+  subject: z.string(),
+  gradeLabel: z.string(),
+  category: z.enum(["textbook", "reader", "reference", "stationery"]),
+  isbn: z.string().nullable(),
+  priceCents: cents,
+})
+export type SchoolCatalogItem = z.infer<typeof schoolCatalogItemSchema>
+
 export const orderStatusSchema = z.enum([
   "pending_payment",
   "payment_failed",

@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { CatalogItem, Order, Payment, PublisherPayouts } from "@/lib/api/schemas"
+import type { Booklist, CatalogItem, Order, Payment, PublisherPayouts } from "@/lib/api/schemas"
 import * as db from "@/mocks/fixtures"
 
 /*
@@ -40,6 +40,19 @@ const admins = () => settings.team.filter((m) => m.role === "admin" && m.status 
 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
+
+const booklists = new Map(db.booklists.map((b) => [b.id, structuredClone(b)]))
+const catalogById = new Map(db.schoolCatalog.map((c) => [c.productId, c]))
+const isoDay = /^\d{4}-\d{2}-\d{2}$/
+/** Check a list's dates and items; `forPublish` adds the rules parents depend on. */
+function checkBooklist(list: Booklist, forPublish: boolean) {
+  const errors: Record<string, string[]> = {}
+  if (!isoDay.test(list.orderDeadline)) errors.orderDeadline = ["Choose the last day parents can order."]
+  if (!isoDay.test(list.deliverBy)) errors.deliverBy = ["Choose when packs must be at school."]
+  else if (list.deliverBy <= list.orderDeadline) errors.deliverBy = ["Give publishers time to pack: this must be after the order deadline."]
+  if (forPublish && !list.items.some((i) => i.required)) errors.items = ["Mark at least one item as required before publishing."]
+  if (Object.keys(errors).length) throw new HttpError(400, errors)
+}
 
 const schoolRows = db.schoolOrderRows.map((r) => structuredClone(r))
 const schoolOrders = new Map(db.schoolOrderDetails.map((o) => [o.id, structuredClone(o)]))
@@ -135,7 +148,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   ["get", "/schools/:slug/", ({ params }) => db.schools.find((s) => s.slug === params.slug) ?? raise(notFound())],
   ["get", "/schools/:slug/booklists/", ({ params }) => {
     const school = db.schools.find((s) => s.slug === params.slug) ?? raise(notFound())
-    return db.booklists.filter((b) => b.schoolId === school.id && b.status === "published")
+    return [...booklists.values()].filter((b) => b.schoolId === school.id && b.status === "published")
   }],
   ["get", "/products/", ({ query }) => {
     let results = [...db.products]
@@ -161,14 +174,14 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
       ? { ...c, openBooklist: latest.status === "pending_payment" ? c.openBooklist : null, latestOrder: { id: latest.id, number: latest.number, status: latest.status, expectedAtSchool: latest.expectedAtSchool } }
       : c
   })],
-  ["get", "/booklists/:id/", ({ params }) => db.booklists.find((b) => b.id === params.id) ?? raise(notFound())],
+  ["get", "/booklists/:id/", ({ params }) => booklists.get(params.id) ?? raise(notFound())],
   ["get", "/orders/", () => {
     const results = [...orders.values()].reverse()
     return { count: results.length, next: null, previous: null, results }
   }],
   ["post", "/orders/", ({ body }) => {
     const child = db.children.find((c) => c.id === body.studentId)
-    const list = db.booklists.find((b) => b.id === body.booklistId)
+    const list = booklists.get(String(body.booklistId))
     if (!child || !list) throw new HttpError(400, { nonFieldErrors: ["This list is no longer open for orders."] })
     const excluded = new Set((body.excludedItemIds as string[]) ?? [])
     const extras = ((body.extraItems as { productId: string; qty: number }[]) ?? []).flatMap(({ productId, qty }) => {
@@ -240,7 +253,66 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
       deliveries: deliveries.map((d) => ({ id: d.id, publisherName: d.publisherName, packs: d.packs, status: d.status, date: d.receipt?.receivedAt.slice(0, 10) ?? d.expectedAt })),
     }
   }],
-  ["get", "/school/booklists/", () => db.booklists.map(db.summarise)],
+  ["get", "/school/booklists/", () => {
+    const lists = [...booklists.values()].map((b) => {
+      const rows = schoolRows.filter((r) => r.gradeName === b.gradeName)
+      const grade = db.schoolGrades.find((g) => g.gradeName === b.gradeName)
+      return { ...db.summarise(b), ordered: rows.filter((r) => r.order && !["pending_payment", "payment_failed"].includes(r.order.status)).length, students: rows.length || grade?.students || 0 }
+    })
+    const taken = new Set(lists.map((l) => l.gradeName))
+    return { termName: db.schoolOverview.termName, lists, gradesWithoutList: db.schoolGrades.filter((g) => !taken.has(g.gradeName)) }
+  }],
+  ["post", "/school/booklists/", ({ body }) => {
+    const grade = db.schoolGrades.find((g) => g.gradeName === body.gradeName) ?? raise(new HttpError(400, { gradeName: ["Choose a grade."] }))
+    if ([...booklists.values()].some((b) => b.gradeName === grade.gradeName)) throw new HttpError(409, { detail: `${grade.gradeName} already has a list this term.` })
+    const list: Booklist = {
+      id: `bl-${grade.gradeName.toLowerCase().replace(/\s+/g, "")}-${Date.now().toString(36)}`,
+      schoolId: "sch-greenhill",
+      schoolName: "Greenhill Academy",
+      termName: db.schoolOverview.termName,
+      gradeName: grade.gradeName,
+      classNames: grade.classNames,
+      orderDeadline: db.schoolOverview.orderDeadline,
+      deliverBy: "2027-01-20",
+      status: "draft",
+      items: [],
+    }
+    booklists.set(list.id, list)
+    return list
+  }],
+  ["put", "/school/booklists/:id/", ({ params, body }) => {
+    const list = booklists.get(params.id) ?? raise(notFound())
+    const input = (body.items as { productId: string; required: boolean; qtyPerStudent: number; note: string | null }[] | undefined) ?? []
+    const seen = new Set<string>()
+    const items = input.map((i) => {
+      const c = catalogById.get(i.productId) ?? raise(new HttpError(400, { items: ["One of these titles is no longer in the catalog."] }))
+      if (seen.has(i.productId)) throw new HttpError(400, { items: [`${c.title} is on the list twice.`] })
+      seen.add(i.productId)
+      if (!Number.isInteger(i.qtyPerStudent) || i.qtyPerStudent < 1 || i.qtyPerStudent > 20) throw new HttpError(400, { items: [`Quantity for ${c.title} must be 1 to 20.`] })
+      const note = i.note?.trim() || null
+      if (note && note.length > 140) throw new HttpError(400, { items: [`Keep the note on ${c.title} under 140 characters.`] })
+      return { id: `${list.id}-${c.productId}`, productId: c.productId, title: c.title, publisherName: c.publisherName, subject: c.subject, unitPriceCents: c.priceCents, qtyPerStudent: i.qtyPerStudent, required: !!i.required, note }
+    })
+    const next = { ...list, orderDeadline: String(body.orderDeadline ?? ""), deliverBy: String(body.deliverBy ?? ""), items }
+    checkBooklist(next, list.status === "published")
+    booklists.set(list.id, next)
+    return next
+  }],
+  ["post", "/school/booklists/:id/publish/", ({ params }) => {
+    const list = booklists.get(params.id) ?? raise(notFound())
+    if (list.status === "published") throw new HttpError(409, { detail: "This list is already published." })
+    checkBooklist(list, true)
+    list.status = "published"
+    return list
+  }],
+  ["get", "/school/catalog/", ({ query }) => {
+    const q = (query.search ?? "").trim().toLowerCase()
+    return db.schoolCatalog.filter(
+      (c) =>
+        (!query.category || query.category === "all" || c.category === query.category) &&
+        (!q || `${c.title} ${c.publisherName} ${c.subject} ${c.isbn ?? ""} ${c.gradeLabel}`.toLowerCase().includes(q))
+    )
+  }],
   ["get", "/school/deliveries/", () => [...schoolDeliveries.values()]],
   ["get", "/school/deliveries/:id/", ({ params }) => schoolDeliveries.get(params.id) ?? raise(notFound())],
   ["post", "/school/deliveries/:id/receive/", ({ params, body, userId }) => {
