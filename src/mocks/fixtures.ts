@@ -10,6 +10,7 @@ import type {
   ProductDetail,
   School,
   SchoolBatch,
+  SchoolDelivery,
   SchoolOrderDetail,
   SchoolOverview,
   StudentOrderRow,
@@ -256,7 +257,17 @@ const seeded = (seed: number) => () => {
 const firstNames = ["Zawadi", "Baraka", "Imani", "Kiprono", "Wanjiru", "Otieno", "Akinyi", "Kamau", "Njeri", "Mutua", "Chebet", "Odhiambo", "Wambui", "Kiptoo", "Nyambura", "Omondi", "Atieno", "Mwangi", "Jepkosgei", "Kibet", "Muthoni", "Ochieng", "Wairimu", "Cheruiyot", "Auma", "Njoroge", "Nekesa", "Wekesa", "Makena", "Kirui"]
 const surnames = ["Otieno", "Kamau", "Wanjiku", "Kiprop", "Mwangi", "Achieng", "Njoroge", "Mutiso", "Koech", "Odera", "Maina", "Chepkemoi", "Owino", "Gitau", "Rotich", "Wafula", "Nduta", "Kimani", "Barasa", "Langat"]
 const parentFirst = ["Achieng", "Grace", "Peter", "Mary", "John", "Faith", "David", "Esther", "Joseph", "Lucy", "Samuel", "Ruth", "James", "Mercy", "Daniel"]
-const shipmentByPublisher = Object.fromEntries(schoolOverview.deliveries.map((d) => [d.publisherName, d.status]))
+/** Where each publisher's Greenhill delivery stands. Moran's arrived with two damaged packs. */
+type DeliveryPlan = Pick<SchoolDelivery, "status" | "expectedAt"> & { noteNo?: string; driver?: [name: string, phone: string, reg: string]; carrier?: string }
+const deliveryPlan: Record<string, DeliveryPlan> = {
+  Longhorn: { status: "received", expectedAt: "2027-01-09", noteNo: "LH-DN-1038", driver: ["Joseph Mwangi", "254711222333", "KCX 412M"], carrier: "Own vehicle" },
+  Moran: { status: "received", expectedAt: "2027-01-09", noteNo: "MOR-55120", driver: ["Kevin Ouma", "254722431908", "KDA 201K"], carrier: "G4S Courier" },
+  KLB: { status: "dispatched", expectedAt: "2027-01-14", noteNo: "KLB-DN-08812", driver: ["Daniel Kiprotich", "254733118220", "KCZ 908T"], carrier: "Own vehicle" },
+  Oxford: { status: "dispatched", expectedAt: "2027-01-15", noteNo: "OUP-KE-30471", driver: ["Brian Mutai", "254701556781", "KDB 377Q"], carrier: "Sendy" },
+  Kasuku: { status: "ready_to_pack", expectedAt: null },
+  Storymoja: { status: "ready_to_pack", expectedAt: null },
+}
+const shipmentByPublisher = Object.fromEntries(Object.entries(deliveryPlan).map(([name, d]) => [name, d.status]))
 
 const gradePlan = [
   { list: booklists[3], classes: [30, 30], paid: 41, pending: 2, failed: 1, year: 2025 },
@@ -335,6 +346,51 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
     })
   }
 }
+
+/** Greenhill's deliveries, built from the paid orders: one pack per student per publisher. */
+export const schoolDeliveries: SchoolDelivery[] = Object.entries(deliveryPlan).map(([publisherName, plan], i) => {
+  const perClass = new Map<string, number>()
+  for (const o of schoolOrderDetails) {
+    if (o.status !== "in_fulfilment" || !o.items.some((it) => it.publisherName === publisherName)) continue
+    perClass.set(o.className, (perClass.get(o.className) ?? 0) + 1)
+  }
+  const packs = [...perClass.values()].reduce((a, b) => a + b, 0)
+  const received = plan.status === "received"
+  const damaged = publisherName === "Moran"
+  return {
+    id: `dl-${i + 1}`,
+    publisherName,
+    status: plan.status,
+    packs,
+    expectedAt: plan.expectedAt,
+    classes: [...perClass].map(([className, expected]) => ({ className, expected, received: received ? expected : null })),
+    dispatch:
+      plan.noteNo && plan.driver
+        ? {
+            deliveryNoteNo: plan.noteNo,
+            carrier: plan.carrier ?? "Own vehicle",
+            driverName: plan.driver[0],
+            driverPhone: plan.driver[1],
+            vehicleReg: plan.driver[2],
+            cartons: Math.ceil(packs / 12),
+            dispatchedAt: `${received ? "2027-01-08" : "2027-01-12"}T15:20:00+03:00`,
+          }
+        : null,
+    receipt: received
+      ? {
+          receivedAt: `${plan.expectedAt}T${damaged ? "14:05" : "10:40"}:00+03:00`,
+          receivedBy: "Grace Wambui",
+          packsReceived: packs,
+          issues: damaged ? ["damaged"] : [],
+          notes: damaged ? "2 PP2 Rose packs soaked through, books unusable. Replacements requested." : "",
+          signOffCode: damaged ? "8130" : "2764",
+        }
+      : null,
+  }
+})
+schoolOverview.deliveries = schoolDeliveries.map((d) => ({ id: d.id, publisherName: d.publisherName, packs: d.packs, status: d.status, date: d.expectedAt }))
+schoolOverview.deliveriesExpected = schoolDeliveries.length
+schoolOverview.deliveriesReceived = schoolDeliveries.filter((d) => d.status === "received").length
 
 /** Longhorn's own catalog, as the demo publisher sees it. */
 export const publisherCatalog: CatalogItem[] = [

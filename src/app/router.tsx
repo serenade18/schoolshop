@@ -102,7 +102,9 @@ export const router = createBrowserRouter([
         children: [
           { index: true, lazy: page(() => import("@/pages/school/SchoolOverviewPage"), "SchoolOverviewPage") },
           { path: "orders", lazy: page(() => import("@/pages/school/SchoolOrdersPage"), "SchoolOrdersPage") },
-          ...comingSoon(schoolNav.filter((n) => n.to !== "/school/orders"), "/school"),
+          { path: "deliveries", lazy: page(() => import("@/pages/school/SchoolDeliveriesPage"), "SchoolDeliveriesPage") },
+          { path: "deliveries/:id", lazy: page(() => import("@/pages/school/SchoolReceiveDeliveryPage"), "SchoolReceiveDeliveryPage") },
+          ...comingSoon(schoolNav.filter((n) => !["/school/orders", "/school/deliveries"].includes(n.to)), "/school"),
         ],
       },
     ],

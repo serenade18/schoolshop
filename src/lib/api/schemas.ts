@@ -296,6 +296,41 @@ export type SchoolOrderDetail = z.infer<typeof schoolOrderDetailSchema>
 
 export const remindResultSchema = z.object({ sent: z.number().int(), skipped: z.number().int() })
 
+export const deliveryIssueSchema = z.enum(["damaged", "wrong_items"])
+
+/** One publisher's delivery to the school for the term: every pack for every class, in one drop. */
+export const schoolDeliverySchema = z.object({
+  id: z.string(),
+  publisherName: z.string(),
+  status: shipmentStatusSchema,
+  packs: z.number().int(),
+  expectedAt: isoDate.nullable(),
+  classes: z.array(z.object({ className: z.string(), expected: z.number().int(), received: z.number().int().nullable() })),
+  dispatch: z
+    .object({
+      deliveryNoteNo: z.string(),
+      carrier: z.string(),
+      driverName: z.string(),
+      driverPhone: z.string(),
+      vehicleReg: z.string(),
+      cartons: z.number().int(),
+      dispatchedAt: isoDateTime,
+    })
+    .nullable(),
+  receipt: z
+    .object({
+      receivedAt: isoDateTime,
+      receivedBy: z.string(),
+      packsReceived: z.number().int(),
+      issues: z.array(deliveryIssueSchema),
+      notes: z.string(),
+      /** Read out to the driver as proof of delivery. */
+      signOffCode: z.string(),
+    })
+    .nullable(),
+})
+export type SchoolDelivery = z.infer<typeof schoolDeliverySchema>
+
 export const schoolBatchSchema = z.object({
   id: z.string(),
   schoolName: z.string(),

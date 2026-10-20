@@ -18,6 +18,7 @@ export const queryKeys = {
   schoolOverview: ["school-overview"] as const,
   myBooklists: ["school-booklists"] as const,
   schoolOrders: ["school-orders"] as const,
+  schoolDeliveries: ["school-deliveries"] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
@@ -119,6 +120,26 @@ export const usePaymentStatus = (id: string | null) => {
 
 export const useSchoolOverview = () =>
   useQuery({ queryKey: queryKeys.schoolOverview, queryFn: endpoints.getSchoolOverview })
+
+export const useSchoolDeliveries = () =>
+  useQuery({ queryKey: queryKeys.schoolDeliveries, queryFn: endpoints.listSchoolDeliveries })
+
+export const useSchoolDelivery = (id: string) =>
+  useQuery({ queryKey: [...queryKeys.schoolDeliveries, id], queryFn: () => endpoints.getSchoolDelivery(id) })
+
+/** Receiving changes the overview counts and parents' order statuses too. */
+export const useReceiveDelivery = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: endpoints.ReceiveInput }) => endpoints.receiveDelivery(id, input),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.schoolDeliveries }),
+        qc.invalidateQueries({ queryKey: queryKeys.schoolOverview }),
+        qc.invalidateQueries({ queryKey: queryKeys.schoolOrders }),
+      ]),
+  })
+}
 
 export const useSchoolOrders = () => useQuery({ queryKey: queryKeys.schoolOrders, queryFn: endpoints.getSchoolOrders })
 

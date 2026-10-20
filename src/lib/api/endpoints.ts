@@ -21,6 +21,7 @@ import {
   productSchema,
   remindResultSchema,
   schoolBatchSchema,
+  schoolDeliverySchema,
   schoolOrderDetailSchema,
   schoolOrdersSchema,
   schoolOverviewSchema,
@@ -111,6 +112,16 @@ export const getPayment = (id: string) => get(`/payments/${id}/`, paymentSchema)
 // School
 export const getSchoolOverview = () => get("/school/overview/", schoolOverviewSchema)
 export const listMyBooklists = () => get("/school/booklists/", z.array(booklistSummarySchema))
+export const listSchoolDeliveries = () => get("/school/deliveries/", z.array(schoolDeliverySchema))
+export const getSchoolDelivery = (id: string) => get(`/school/deliveries/${id}/`, schoolDeliverySchema)
+export type ReceiveInput = {
+  classes: { className: string; received: number }[]
+  issues: ("damaged" | "wrong_items")[]
+  notes: string
+}
+/** Confirm a delivery. Releases the publisher's payment for the packs received; short or damaged packs open a claim. */
+export const receiveDelivery = (id: string, input: ReceiveInput) =>
+  post(`/school/deliveries/${id}/receive/`, schoolDeliverySchema, input)
 export const getSchoolOrders = () => get("/school/orders/", schoolOrdersSchema)
 export const getSchoolOrder = (id: string) => get(`/school/orders/${id}/`, schoolOrderDetailSchema)
 /** SMS the parents of these students. Students without a phone, or reminded in the last 24 h, are skipped. */
