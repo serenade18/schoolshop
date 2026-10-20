@@ -524,6 +524,36 @@ export const accountSchema = z.object({
 })
 export type Account = z.infer<typeof accountSchema>
 
+export const studentSchema = z.object({
+  studentId: z.string(),
+  name: z.string(),
+  admissionNo: z.string(),
+  gradeName: z.string(),
+  className: z.string(),
+  parentName: z.string().nullable(),
+  /** Masked once saved: the school typed it in, but staff screens never show it in full. */
+  parentPhone: z.string().nullable(),
+  /** A parent has linked this child on SchoolShop with the school code. */
+  parentLinked: z.boolean(),
+  hasOrder: z.boolean(),
+})
+export type Student = z.infer<typeof studentSchema>
+
+export const classRosterSchema = z.object({
+  /** Parents enter this to link their children. */
+  joinCode: z.string(),
+  classes: z.array(z.object({ className: z.string(), gradeName: z.string(), teacher: z.string().nullable(), students: z.number().int(), linked: z.number().int() })),
+  students: z.array(studentSchema),
+})
+export type ClassRoster = z.infer<typeof classRosterSchema>
+
+export const studentImportResultSchema = z.object({
+  valid: z.number().int(),
+  created: z.number().int(),
+  errors: z.array(z.object({ line: z.number().int(), message: z.string() })),
+})
+export type StudentImportResult = z.infer<typeof studentImportResultSchema>
+
 export const staffMemberSchema = z.object({
   id: z.string(),
   name: z.string(),

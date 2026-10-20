@@ -23,6 +23,7 @@ export const queryKeys = {
   collection: ["school-collection"] as const,
   schoolSettings: ["school-settings"] as const,
   account: ["account"] as const,
+  roster: ["school-roster"] as const,
   staff: (scope: string) => ["staff", scope] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
@@ -200,6 +201,21 @@ export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
 }
 
 export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
+
+export const useRoster = () => useQuery({ queryKey: queryKeys.roster, queryFn: endpoints.getRoster })
+
+/** Any change to students also changes parent orders and collection lists. */
+export function useRosterMutation<V, R>(fn: (vars: V) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.roster }),
+        qc.invalidateQueries({ queryKey: queryKeys.schoolOrders }),
+      ]),
+  })
+}
 
 export const useCollection = () => useQuery({ queryKey: queryKeys.collection, queryFn: endpoints.listCollection })
 

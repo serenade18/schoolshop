@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail } from "@/lib/api/schemas"
+import type { Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, StudentOrderRow } from "@/lib/api/schemas"
 import { ownerRole, permissionsFor, roleDef, type OrgType } from "@/lib/access"
 import * as db from "@/mocks/fixtures"
 
@@ -59,6 +59,12 @@ const schoolSettings = structuredClone(db.schoolSettings)
 /** Wrong-code attempts per class; five in a row locks that class for a minute. */
 const codeAttempts = new Map<string, { wrong: number; lockedUntil: number }>()
 
+/** Which students' parents have linked them on SchoolShop: everyone who ordered, and two in three of the rest. */
+const linked = new Set(db.schoolOrderRows.filter((r, i) => r.order || (r.parentPhone && i % 3 !== 0)).map((r) => r.studentId))
+let studentSeq = 5000
+const mask = (e164: string) => { const l = e164.replace(/^254/, "0"); return `${l.slice(0, 4)} ••• ${l.slice(-3)}` }
+const allClasses = () => db.schoolGrades.flatMap((g) => g.classNames.map((className) => ({ className, gradeName: g.gradeName })))
+
 const schoolRows = db.schoolOrderRows.map((r) => structuredClone(r))
 const schoolOrders = new Map(db.schoolOrderDetails.map((o) => [o.id, structuredClone(o)]))
 const schoolDeliveries = new Map(db.schoolDeliveries.map((d) => [d.id, structuredClone(d)]))
@@ -66,6 +72,44 @@ const schoolDeliveries = new Map(db.schoolDeliveries.map((d) => [d.id, structure
 const orders = new Map(db.orders.map((o) => [o.id, structuredClone(o)]))
 const payments = new Map<string, Payment & { checks: number }>()
 let orderSeq = 20430
+
+function studentView(r: StudentOrderRow) {
+  return {
+    studentId: r.studentId,
+    name: r.studentName,
+    admissionNo: r.admissionNo,
+    gradeName: r.gradeName,
+    className: r.className,
+    parentName: r.parentName,
+    parentPhone: r.parentPhone,
+    parentLinked: linked.has(r.studentId),
+    hasOrder: !!r.order,
+  }
+}
+
+function createStudent(body: Record<string, unknown>) {
+  const name = String(body.name ?? "").trim()
+  const admissionNo = String(body.admissionNo ?? "").trim().toUpperCase()
+  if (name.length < 2) throw new HttpError(400, { name: ["Enter the student's full name."] })
+  if (!admissionNo) throw new HttpError(400, { admissionNo: ["Enter their admission number."] })
+  if (schoolRows.some((r) => r.admissionNo === admissionNo)) throw new HttpError(400, { admissionNo: [`${admissionNo} is already on the roll.`] })
+  const cls = allClasses().find((c) => c.className === body.className) ?? raise(new HttpError(400, { className: ["Choose a class."] }))
+  const phone = body.parentPhone ? String(body.parentPhone) : null
+  if (phone && !/^254[17]\d{8}$/.test(phone)) throw new HttpError(400, { parentPhone: ["Enter a Kenyan mobile number."] })
+  const row: StudentOrderRow = {
+    studentId: `stu-${++studentSeq}`,
+    studentName: name,
+    admissionNo,
+    gradeName: cls.gradeName,
+    className: cls.className,
+    parentName: body.parentName ? String(body.parentName).trim() : null,
+    parentPhone: phone ? mask(phone) : null,
+    order: null,
+    remindedAt: null,
+  }
+  schoolRows.push(row)
+  return row
+}
 
 function collectionRow(o: SchoolOrderDetail): CollectionRow {
   const waitingFor = o.shipments.filter((s) => s.status !== "received").map((s) => s.publisherName)
@@ -120,6 +164,7 @@ const guards: Array<[method: string, path: RegExp, orgType: OrgType, permission:
   ["*", /^\/school\/deliveries\//, "school", "deliveries.receive"],
   ["*", /^\/school\/collection\//, "school", "collection.handout"],
   ["*", /^\/school\/settings\//, "school", "settings.manage"],
+  ["*", /^\/school\/students\//, "school", "settings.manage"],
   ["*", /^\/school\/staff\//, "school", "staff.manage"],
   ["post", /^\/publisher\/batches\/[^/]+\/dispatch\/$/, "publisher", "dispatch.manage"],
   ["get", /^\/publisher\/batches\/$/, "publisher", "orders.view"],
@@ -637,6 +682,76 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   }],
   ["get", "/school/orders/", () => ({ termName: db.schoolOverview.termName, orderDeadline: db.schoolOverview.orderDeadline, rows: schoolRows })],
   ["get", "/school/orders/:id/", ({ params }) => schoolOrders.get(params.id) ?? raise(notFound())],
+  ["get", "/school/students/", () => {
+    const teachers = directories.school.members.filter((m) => m.role === "teacher" && m.status !== "suspended")
+    return {
+      joinCode: "GRN-2027",
+      classes: allClasses().map(({ className, gradeName }) => {
+        const inClass = schoolRows.filter((r) => r.className === className)
+        return {
+          className,
+          gradeName,
+          teacher: teachers.find((t) => t.classNames.includes(className))?.name ?? null,
+          students: inClass.length,
+          linked: inClass.filter((r) => linked.has(r.studentId)).length,
+        }
+      }),
+      students: schoolRows.map(studentView),
+    }
+  }],
+  ["post", "/school/students/", ({ body }) => studentView(createStudent(body))],
+  ["patch", "/school/students/:id/", ({ params, body }) => {
+    const row = schoolRows.find((r) => r.studentId === params.id) ?? raise(notFound())
+    if (body.name !== undefined) {
+      const name = String(body.name).trim()
+      if (name.length < 2) throw new HttpError(400, { name: ["Enter the student's full name."] })
+      row.studentName = name
+    }
+    if (body.className !== undefined) {
+      const cls = allClasses().find((c) => c.className === body.className) ?? raise(new HttpError(400, { className: ["Choose a class."] }))
+      if (row.order && cls.gradeName !== row.gradeName && !["pending_payment", "payment_failed"].includes(row.order.status))
+        throw new HttpError(409, { className: [`${row.studentName} already has a paid ${row.gradeName} order. Move them within ${row.gradeName}, or ask SchoolShop support.`] })
+      Object.assign(row, { className: cls.className, gradeName: cls.gradeName })
+    }
+    if (body.parentName !== undefined) row.parentName = body.parentName ? String(body.parentName).trim() : null
+    if (body.parentPhone !== undefined && body.parentPhone !== null) {
+      const phone = String(body.parentPhone)
+      if (!/^254[17]\d{8}$/.test(phone)) throw new HttpError(400, { parentPhone: ["Enter a Kenyan mobile number."] })
+      row.parentPhone = mask(phone)
+    }
+    return studentView(row)
+  }],
+  ["delete", "/school/students/:id/", ({ params }) => {
+    const row = schoolRows.find((r) => r.studentId === params.id) ?? raise(notFound())
+    if (row.order && !["pending_payment", "payment_failed"].includes(row.order.status)) throw new HttpError(409, { detail: `${row.studentName} has a paid order. Mark them as left once it's collected.` })
+    schoolRows.splice(schoolRows.indexOf(row), 1)
+    return null
+  }],
+  ["post", "/school/students/import/", ({ body }) => {
+    const rows = (body.rows as Record<string, string | null>[] | undefined) ?? []
+    if (rows.length === 0) throw new HttpError(400, { rows: ["The file has no students in it."] })
+    if (rows.length > 2000) throw new HttpError(400, { rows: ["Import at most 2,000 students at a time."] })
+    const errors: { line: number; message: string }[] = []
+    const seen = new Set<string>()
+    const ok: Record<string, string | null>[] = []
+    rows.forEach((r, i) => {
+      const line = i + 2 // line 1 is the header
+      const adm = String(r.admissionNo ?? "").trim().toUpperCase()
+      if (String(r.name ?? "").trim().length < 2) return errors.push({ line, message: "Name is missing" })
+      if (!adm) return errors.push({ line, message: "Admission number is missing" })
+      if (seen.has(adm) || schoolRows.some((x) => x.admissionNo === adm)) return errors.push({ line, message: `${adm} is already on the roll` })
+      if (!allClasses().some((c) => c.className === r.className)) return errors.push({ line, message: `"${r.className ?? ""}" isn't a class at this school` })
+      if (r.parentPhone && !/^254[17]\d{8}$/.test(String(r.parentPhone))) return errors.push({ line, message: "Parent phone isn't a Kenyan mobile number" })
+      seen.add(adm)
+      ok.push(r)
+    })
+    if (!body.dryRun) ok.forEach((r) => createStudent(r))
+    return { valid: ok.length, created: body.dryRun ? 0 : ok.length, errors }
+  }],
+  ["post", "/school/students/invite/", ({ body }) => {
+    const targets = schoolRows.filter((r) => r.parentPhone && !linked.has(r.studentId) && (!body.className || r.className === body.className))
+    return { sent: targets.length }
+  }],
   ["post", "/school/orders/remind/", ({ body }) => {
     const ids = new Set((body.studentIds as string[] | undefined) ?? [])
     if (ids.size === 0) throw new HttpError(400, { studentIds: ["Choose at least one student."] })

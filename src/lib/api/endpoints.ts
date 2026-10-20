@@ -29,7 +29,10 @@ import {
   schoolOrdersSchema,
   schoolOverviewSchema,
   schoolSchema,
+  classRosterSchema,
   schoolSettingsSchema,
+  studentImportResultSchema,
+  studentSchema,
   staffDirectorySchema,
   userSchema,
 } from "@/lib/api/schemas"
@@ -148,6 +151,23 @@ export const saveBooklist = async (id: string, input: BooklistInput) => {
 export const publishBooklist = (id: string) => post(`/school/booklists/${id}/publish/`, booklistSchema)
 export const searchSchoolCatalog = (search: string, category: string) =>
   get("/school/catalog/", z.array(schoolCatalogItemSchema), { search, category })
+export const getRoster = () => get("/school/students/", classRosterSchema)
+export type StudentInput = { name: string; admissionNo: string; className: string; parentName: string | null; parentPhone: string | null }
+export const addStudent = (input: StudentInput) => post("/school/students/", studentSchema, input)
+/** Leave parentPhone out to keep the number on file. */
+export const updateStudent = async (id: string, input: Partial<StudentInput>) => {
+  const { data } = await api.patch(`/school/students/${id}/`, input)
+  return studentSchema.parse(data)
+}
+export const removeStudent = async (id: string) => {
+  await api.delete(`/school/students/${id}/`)
+}
+/** Check rows first with dryRun, then import the valid ones. */
+export const importStudents = (rows: Omit<StudentInput, "parentName">[], dryRun: boolean) =>
+  post("/school/students/import/", studentImportResultSchema, { rows, dryRun })
+/** SMS the school code to parents with a phone on file who haven't linked their child yet. */
+export const inviteParents = (className: string | null) => post("/school/students/invite/", z.object({ sent: z.number().int() }), { className })
+
 export const listCollection = () => get("/school/collection/", z.array(collectionRowSchema))
 /** Hand over a pack: the code the student or parent reads out must match an order in this class. */
 export const handOverPack = (input: { className: string; code: string }) =>
