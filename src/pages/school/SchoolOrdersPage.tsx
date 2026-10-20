@@ -30,6 +30,8 @@ const filters: { id: Filter; label: string }[] = [
 const PAGE_SIZE = 25
 const DAY = 86_400_000
 
+/** PP1, PP2, Grade 1 … Grade 9 */
+const gradeRank = (g: string) => (g.startsWith("PP") ? -10 : 0) + parseInt(g.replace(/\D/g, "") || "0")
 const isUnpaid = (r: StudentOrderRow) => r.order?.status === "pending_payment" || r.order?.status === "payment_failed"
 const kindOf = (r: StudentOrderRow): Exclude<Filter, "all"> => (!r.order ? "none" : isUnpaid(r) ? "unpaid" : "paid")
 const remindedRecently = (r: StudentOrderRow) => !!r.remindedAt && Date.now() - Date.parse(r.remindedAt) < DAY
@@ -70,8 +72,9 @@ function ParentOrders({ data }: { data: SchoolOrders }) {
     setPage(0)
   }
 
-  const grades = [...new Set(data.rows.map((r) => r.gradeName))].sort((a, b) => parseInt(a.slice(6)) - parseInt(b.slice(6)))
-  const classes = [...new Set(data.rows.filter((r) => !grade || r.gradeName === grade).map((r) => r.className))].sort()
+  const grades = [...new Set(data.rows.map((r) => r.gradeName))].sort((a, b) => gradeRank(a) - gradeRank(b))
+  // Rows arrive in school order (grade, then class), so first appearance is the right order.
+  const classes = [...new Set(data.rows.filter((r) => !grade || r.gradeName === grade).map((r) => r.className))]
 
   // Grade, class and search narrow everything; the chips then split that set.
   const scoped = useMemo(

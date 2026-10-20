@@ -92,6 +92,19 @@ export const booklists: Booklist[] = [
       item("g1-dict", "Picture dictionary", "Oxford", "Reference", 900, false),
     ],
   },
+  {
+    ...greenhillBase,
+    id: "bl-pp2",
+    gradeName: "PP2",
+    classNames: ["PP2 Rose", "PP2 Lily"],
+    items: [
+      item("pp2-lang", "Language Activities PP2", "Moran", "Language", 480),
+      item("pp2-math", "Mathematical Activities PP2", "Longhorn", "Mathematics", 480),
+      item("pp2-env", "Environmental Activities PP2", "KLB", "Environmental", 460),
+      item("pp2-crayons", "Wax crayons, 12 colours", "Kasuku", "Stationery", 250),
+      item("pp2-draw", "Drawing book A4", "Kasuku", "Stationery", 200, false),
+    ],
+  },
 ]
 
 export const summarise = (b: Booklist) => {
@@ -209,29 +222,30 @@ export function productDetail(product: Product): ProductDetail {
 export const schoolOverview: SchoolOverview = {
   schoolName: "Greenhill Academy",
   termName: "Term 1, 2027",
-  studentsOrdered: 271,
-  studentsTotal: 480,
+  studentsOrdered: 312,
+  studentsTotal: 540,
   orderDeadline: "2027-01-10",
   deliveriesReceived: 2,
   deliveriesExpected: 5,
   packsCollected: 0,
   booklists: [
+    { ...summarise(booklists[3]), ordered: 41, students: 60 },
     { ...summarise(booklists[2]), ordered: 58, students: 90 },
     { ...summarise(booklists[0]), ordered: 63, students: 120 },
     { ...summarise(booklists[1]), ordered: 150, students: 270 },
   ],
   deliveries: [
-    { id: "dl-1", publisherName: "Longhorn", packs: 271, status: "received", date: "2027-01-09" },
-    { id: "dl-2", publisherName: "Moran", packs: 63, status: "received", date: "2027-01-09" },
-    { id: "dl-3", publisherName: "KLB", packs: 213, status: "dispatched", date: "2027-01-14" },
-    { id: "dl-4", publisherName: "Oxford", packs: 121, status: "dispatched", date: "2027-01-15" },
-    { id: "dl-5", publisherName: "Kasuku", packs: 271, status: "ready_to_pack", date: null },
+    { id: "dl-1", publisherName: "Longhorn", packs: 312, status: "received", date: "2027-01-09" },
+    { id: "dl-2", publisherName: "Moran", packs: 120, status: "received", date: "2027-01-09" },
+    { id: "dl-3", publisherName: "KLB", packs: 270, status: "dispatched", date: "2027-01-14" },
+    { id: "dl-4", publisherName: "Oxford", packs: 183, status: "dispatched", date: "2027-01-15" },
+    { id: "dl-5", publisherName: "Kasuku", packs: 312, status: "ready_to_pack", date: null },
   ],
 }
 
 /*
- * Greenhill's parent orders: one row per enrolled student (480), generated
- * from a fixed seed so the numbers match the overview (271 paid).
+ * Greenhill's parent orders: one row per enrolled student (540), generated
+ * from a fixed seed so the numbers match the overview (312 paid).
  */
 const seeded = (seed: number) => () => {
   seed = (seed + 0x6d2b79f5) | 0
@@ -245,6 +259,7 @@ const parentFirst = ["Achieng", "Grace", "Peter", "Mary", "John", "Faith", "Davi
 const shipmentByPublisher = Object.fromEntries(schoolOverview.deliveries.map((d) => [d.publisherName, d.status]))
 
 const gradePlan = [
+  { list: booklists[3], classes: [30, 30], paid: 41, pending: 2, failed: 1, year: 2025 },
   { list: booklists[2], classes: [45, 45], paid: 58, pending: 4, failed: 1, year: 2026 },
   { list: booklists[0], classes: [40, 40, 40], paid: 63, pending: 7, failed: 2, year: 2023 },
   { list: booklists[1], classes: [90, 90, 90], paid: 150, pending: 5, failed: 1, year: 2020 },
