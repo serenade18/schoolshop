@@ -6,6 +6,7 @@ import type {
   Order,
   Product,
   PublisherPayouts,
+  PublisherSettings,
   ProductDetail,
   School,
   SchoolBatch,
@@ -278,6 +279,32 @@ export const publisherPayouts: PublisherPayouts = {
     payout({ id: "po-2", termName: "Term 3, 2026", schoolName: "St. Mary's Primary", town: "Eldoret", deliveryNoteNo: "DN-0979", receivedAt: "2026-09-06T12:10:00+03:00", grossCents: k(96800), deductionsCents: k(1240), deductionNote: "2 copies damaged: Mathematics Activities Grade 1, refunded to parents", status: "paid", paidAt: "2026-09-08T10:00:00+03:00", reference: "QIF2L7R5WD" }),
     payout({ id: "po-1", termName: "Term 3, 2026", schoolName: "Kilimani Primary", town: "Nairobi", deliveryNoteNo: "DN-0971", receivedAt: "2026-09-03T08:45:00+03:00", grossCents: k(41250), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2026-09-05T10:00:00+03:00", reference: "QIC9P3D6NE" }),
   ],
+}
+
+export const publisherSettings: PublisherSettings = {
+  profile: {
+    companyName: "Longhorn Publishers Ltd",
+    kraPin: "P051234567X",
+    verifiedAt: "2026-08-14T10:00:00+03:00",
+    contactName: "Peter Kamau",
+    phone: "254700000444",
+    email: "orders@longhorn.co.ke",
+    dispatchAddress: "Funzi Road, Industrial Area, Nairobi",
+    county: "Nairobi",
+  },
+  team: [
+    { id: "tm-1", name: "Peter Kamau", contact: "254700000444", role: "admin", status: "active", isYou: true },
+    { id: "tm-2", name: "Joseph Mwangi", contact: "254711222333", role: "warehouse", status: "active", isYou: false },
+    { id: "tm-3", name: "Ann Njeri", contact: "ann.njeri@longhorn.co.ke", role: "finance", status: "active", isYou: false },
+    { id: "tm-4", name: "Brian Otieno", contact: "254733111222", role: "warehouse", status: "invited", isYou: false },
+  ],
+  notifications: {
+    batch_ready: { sms: true, email: true },
+    delivery_issue: { sms: true, email: true },
+    payout_sent: { sms: false, email: true },
+    low_stock: { sms: false, email: true },
+    weekly_summary: { sms: false, email: true },
+  },
 }
 
 export const adminOverview: AdminOverview = {

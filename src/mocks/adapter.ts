@@ -14,7 +14,8 @@ import * as db from "@/mocks/fixtures"
  *   - a payment succeeds on the second status check (~4 s of polling).
  */
 
-type Ctx = { params: Record<string, string>; query: Record<string, string>; body: Record<string, unknown> }
+/** userId comes from the mock bearer token ("mock-access-<userId>"). */
+type Ctx = { params: Record<string, string>; query: Record<string, string>; body: Record<string, unknown>; userId: string | null }
 type Handler = (ctx: Ctx) => unknown
 
 const DEMO_CODE = "123456"
@@ -32,6 +33,10 @@ const batches = new Map(db.publisherBatches.map((b) => [b.id, structuredClone(b)
 let deliveryNoteSeq = 1042
 
 const payouts = structuredClone(db.publisherPayouts)
+const settings = structuredClone(db.publisherSettings)
+let teamSeq = 10
+const findTeam = (id: string) => settings.team.find((m) => m.id === id) ?? raise(notFound())
+const admins = () => settings.team.filter((m) => m.role === "admin" && m.status === "active")
 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
@@ -104,6 +109,13 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     if (passwords.get(user.phone) === body.password) throw new HttpError(400, { password: ["Choose a password you haven't used before."] })
     passwords.set(user.phone, String(body.password))
     return { reset: true }
+  }],
+  ["post", "/auth/password/change/", ({ body, userId }) => {
+    const user = Object.values(db.demoUsers).find((u) => u.id === userId) ?? raise(new HttpError(401, { detail: "Sign in again." }))
+    if (passwords.get(user.phone) !== body.currentPassword) throw new HttpError(400, { currentPassword: ["That isn't your current password."] })
+    if (body.currentPassword === body.newPassword) throw new HttpError(400, { newPassword: ["Choose a password you haven't used before."] })
+    passwords.set(user.phone, String(body.newPassword))
+    return { changed: true }
   }],
   ["post", "/organisations/applications/", ({ body }) => {
     const phone = String(body.phone ?? "")
@@ -242,6 +254,34 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   }],
   ["get", "/publisher/catalog/", () => [...catalog.values()]],
   ["get", "/publisher/payouts/", () => payouts],
+  ["get", "/publisher/settings/", () => settings],
+  ["patch", "/publisher/settings/profile/", ({ body }) => {
+    Object.assign(settings.profile, body)
+    return settings
+  }],
+  ["put", "/publisher/settings/notifications/", ({ body }) => {
+    settings.notifications = body as typeof settings.notifications
+    return settings
+  }],
+  ["post", "/publisher/team/", ({ body }) => {
+    const contact = String(body.contact)
+    if (settings.team.some((m) => m.contact.toLowerCase() === contact.toLowerCase())) throw new HttpError(400, { contact: ["Someone on your team already uses this."] })
+    settings.team.push({ id: `tm-${++teamSeq}`, name: String(body.name), contact, role: body.role as "admin", status: "invited", isYou: false })
+    return settings
+  }],
+  ["patch", "/publisher/team/:id/", ({ params, body }) => {
+    const m = findTeam(params.id)
+    if (m.role === "admin" && body.role !== "admin" && admins().length === 1 && m.status === "active") throw new HttpError(400, { role: ["Your team needs at least one admin."] })
+    m.role = body.role as typeof m.role
+    return settings
+  }],
+  ["delete", "/publisher/team/:id/", ({ params }) => {
+    const m = findTeam(params.id)
+    if (m.isYou) throw new HttpError(400, { detail: "You can't remove yourself." })
+    if (m.role === "admin" && m.status === "active" && admins().length === 1) throw new HttpError(400, { detail: "Your team needs at least one admin." })
+    settings.team = settings.team.filter((x) => x.id !== m.id)
+    return settings
+  }],
   ["put", "/publisher/payout-account/", ({ body }) => {
     const number = String(body.number ?? "").replace(/\s/g, "")
     const method = body.method as PublisherPayouts["account"]["method"]
@@ -309,7 +349,9 @@ export const mockAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
     if (!params) continue
     try {
       const created = method === "post" && !pattern.startsWith("/auth/")
-      return respond(created ? 201 : 200, structuredClone(handler({ params, query, body })))
+      const auth = String(config.headers?.Authorization ?? "")
+      const userId = auth.startsWith("Bearer mock-access-") ? auth.slice("Bearer mock-access-".length) : null
+      return respond(created ? 201 : 200, structuredClone(handler({ params, query, body, userId })))
     } catch (e) {
       if (e instanceof HttpError) {
         throw new AxiosError(e.message, String(e.status), config, null, respond(e.status, e.data))

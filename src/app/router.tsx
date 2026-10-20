@@ -114,7 +114,7 @@ export const router = createBrowserRouter([
           { path: "catalog", lazy: page(() => import("@/pages/publisher/PublisherCatalogPage"), "PublisherCatalogPage") },
           { path: "dispatches", lazy: page(() => import("@/pages/publisher/PublisherDispatchesPage"), "PublisherDispatchesPage") },
           { path: "payouts", lazy: page(() => import("@/pages/publisher/PublisherPayoutsPage"), "PublisherPayoutsPage") },
-          ...comingSoon(publisherNav.filter((n) => !["/publisher/catalog", "/publisher/dispatches", "/publisher/payouts"].includes(n.to)), "/publisher"),
+          { path: "settings", lazy: page(() => import("@/pages/publisher/PublisherSettingsPage"), "PublisherSettingsPage") },
         ],
       },
     ],

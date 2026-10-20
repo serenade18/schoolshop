@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
+import type { PublisherSettings } from "@/lib/api/schemas"
 
 export const queryKeys = {
   me: ["me"] as const,
@@ -19,6 +20,7 @@ export const queryKeys = {
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
   payouts: ["publisher-payouts"] as const,
+  settings: ["publisher-settings"] as const,
   adminOverview: ["admin-overview"] as const,
 }
 
@@ -152,3 +154,14 @@ export const useUpdatePayoutAccount = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.payouts }),
   })
 }
+
+export const usePublisherSettings = () =>
+  useQuery({ queryKey: queryKeys.settings, queryFn: endpoints.getPublisherSettings })
+
+/** Wraps a settings call that returns the whole settings object, and caches the result. */
+export function useSettingsMutation<V>(fn: (vars: V) => Promise<PublisherSettings>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: (data) => qc.setQueryData(queryKeys.settings, data) })
+}
+
+export const useChangePassword = () => useMutation({ mutationFn: endpoints.changePassword })

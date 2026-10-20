@@ -331,6 +331,40 @@ export const publisherPayoutsSchema = z.object({
 })
 export type PublisherPayouts = z.infer<typeof publisherPayoutsSchema>
 
+export const teamRoleSchema = z.enum(["admin", "warehouse", "finance"])
+export type TeamRole = z.infer<typeof teamRoleSchema>
+
+export const notificationEventSchema = z.enum(["batch_ready", "delivery_issue", "payout_sent", "low_stock", "weekly_summary"])
+export type NotificationEvent = z.infer<typeof notificationEventSchema>
+
+export const publisherSettingsSchema = z.object({
+  profile: z.object({
+    companyName: z.string(),
+    kraPin: z.string(),
+    verifiedAt: isoDateTime.nullable(),
+    contactName: z.string(),
+    phone: z.string(),
+    email: z.email(),
+    dispatchAddress: z.string(),
+    county: z.string(),
+  }),
+  team: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      /** Phone (2547…) or email the invite went to. */
+      contact: z.string(),
+      role: teamRoleSchema,
+      status: z.enum(["active", "invited"]),
+      isYou: z.boolean(),
+    })
+  ),
+  /** Which channels each event is sent on. */
+  notifications: z.record(notificationEventSchema, z.object({ sms: z.boolean(), email: z.boolean() })),
+})
+export type PublisherSettings = z.infer<typeof publisherSettingsSchema>
+export type TeamMember = PublisherSettings["team"][number]
+
 export const adminOverviewSchema = z.object({
   termName: z.string(),
   salesCents: cents,
