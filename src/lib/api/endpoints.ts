@@ -115,6 +115,18 @@ export const updateCatalogItem = async (id: string, input: Partial<CatalogItemIn
   return catalogItemSchema.parse(data)
 }
 export const listPublisherBatches = () => get("/publisher/batches/", z.array(schoolBatchSchema))
+export type DispatchInput = {
+  carrier: string
+  driverName: string
+  driverPhone: string
+  vehicleReg: string
+  cartons: number
+  expectedAt: string
+  unavailableLines: string[]
+}
+/** Hand a school's packed batch to the carrier. The school is notified to expect it. */
+export const dispatchBatch = (id: string, input: DispatchInput) =>
+  post(`/publisher/batches/${id}/dispatch/`, schoolBatchSchema, input)
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)

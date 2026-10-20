@@ -237,16 +237,25 @@ export const publisherCatalog: CatalogItem[] = [
 ]
 
 export const publisherBatches: SchoolBatch[] = [
-  { id: "bt-1", schoolName: "Greenhill Academy", town: "Nakuru", packs: 312, valueCents: k(187200), dueAtSchool: "2027-01-20", status: "ready_to_pack", collectingUntil: null,
+  { id: "bt-1", schoolName: "Greenhill Academy", town: "Nakuru", packs: 312, valueCents: k(187200), dueAtSchool: "2027-01-20", status: "ready_to_pack", collectingUntil: null, unavailableLines: [], dispatch: null, receipt: null,
     lines: [{ title: "Mathematics Activities Grade 4", qty: 63 }, { title: "Social Studies Grade 4", qty: 63 }, { title: "Mathematics Grade 7", qty: 150 }, { title: "Integrated Science Grade 7", qty: 150 }] },
-  { id: "bt-2", schoolName: "St. Mary's Primary", town: "Eldoret", packs: 204, valueCents: k(118300), dueAtSchool: "2027-01-18", status: "ready_to_pack", collectingUntil: null,
+  { id: "bt-2", schoolName: "St. Mary's Primary", town: "Eldoret", packs: 204, valueCents: k(118300), dueAtSchool: "2027-01-18", status: "ready_to_pack", collectingUntil: null, unavailableLines: [], dispatch: null, receipt: null,
     lines: [{ title: "Mathematics Activities Grade 1", qty: 88 }, { title: "English Activities Grade 1", qty: 88 }, { title: "Social Studies Grade 4", qty: 116 }] },
-  { id: "bt-3", schoolName: "Riverside Junior School", town: "Kisumu", packs: 178, valueCents: k(107100), dueAtSchool: "2027-01-22", status: "ready_to_pack", collectingUntil: null,
+  { id: "bt-3", schoolName: "Riverside Junior School", town: "Kisumu", packs: 178, valueCents: k(107100), dueAtSchool: "2027-01-22", status: "ready_to_pack", collectingUntil: null, unavailableLines: [], dispatch: null, receipt: null,
     lines: [{ title: "Mathematics Grade 7", qty: 178 }, { title: "Pre-Technical Studies Grade 7", qty: 178 }] },
-  { id: "bt-4", schoolName: "Kilimani Primary", town: "Nairobi", packs: 96, valueCents: k(52800), dueAtSchool: "2027-01-24", status: "collecting", collectingUntil: "2027-01-12",
+  { id: "bt-4", schoolName: "Kilimani Primary", town: "Nairobi", packs: 96, valueCents: k(52800), dueAtSchool: "2027-01-24", status: "collecting", collectingUntil: "2027-01-12", unavailableLines: [], dispatch: null, receipt: null,
     lines: [{ title: "Mathematics Activities Grade 4", qty: 96 }] },
-  { id: "bt-5", schoolName: "Hillcrest Prep", town: "Nyeri", packs: 140, valueCents: k(84000), dueAtSchool: "2027-01-09", status: "dispatched", collectingUntil: null,
+  { id: "bt-5", schoolName: "Hillcrest Prep", town: "Nyeri", packs: 140, valueCents: k(84000), dueAtSchool: "2027-01-09", status: "dispatched", collectingUntil: null, unavailableLines: [], receipt: null,
+    dispatch: { deliveryNoteNo: "DN-1042", carrier: "Own vehicle", driverName: "Joseph Mwangi", driverPhone: "254711222333", vehicleReg: "KDA 412K", cartons: 18, dispatchedAt: "2027-01-07T07:30:00+03:00", expectedAt: "2027-01-08" },
     lines: [{ title: "Mathematics Activities Grade 4", qty: 70 }, { title: "Social Studies Grade 4", qty: 70 }] },
+  { id: "bt-6", schoolName: "Sunrise Academy", town: "Machakos", packs: 120, valueCents: k(73200), dueAtSchool: "2027-01-08", status: "received", collectingUntil: null, unavailableLines: [],
+    dispatch: { deliveryNoteNo: "DN-1038", carrier: "G4S Courier", driverName: "Kevin Otieno", driverPhone: "254722444555", vehicleReg: "KCZ 908T", cartons: 15, dispatchedAt: "2027-01-05T08:10:00+03:00", expectedAt: "2027-01-06" },
+    receipt: { receivedAt: "2027-01-06T11:20:00+03:00", receivedBy: "Mary Wanjiku, deputy head", issue: "6 packs short: Social Studies Grade 4", payout: "queued" },
+    lines: [{ title: "Mathematics Activities Grade 4", qty: 60 }, { title: "Social Studies Grade 4", qty: 60 }] },
+  { id: "bt-7", schoolName: "Lakeview Primary", town: "Naivasha", packs: 88, valueCents: k(57200), dueAtSchool: "2027-01-07", status: "received", collectingUntil: null, unavailableLines: ["Pre-Technical Studies Grade 7"],
+    dispatch: { deliveryNoteNo: "DN-1031", carrier: "Own vehicle", driverName: "Joseph Mwangi", driverPhone: "254711222333", vehicleReg: "KDA 412K", cartons: 11, dispatchedAt: "2027-01-04T07:45:00+03:00", expectedAt: "2027-01-04" },
+    receipt: { receivedAt: "2027-01-04T14:05:00+03:00", receivedBy: "Daniel Kiprop, head teacher", issue: null, payout: "paid" },
+    lines: [{ title: "Mathematics Grade 7", qty: 88 }, { title: "Pre-Technical Studies Grade 7", qty: 88 }] },
 ]
 
 export const adminOverview: AdminOverview = {

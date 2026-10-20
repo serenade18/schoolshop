@@ -266,6 +266,31 @@ export const schoolBatchSchema = z.object({
   status: shipmentStatusSchema,
   collectingUntil: isoDate.nullable(),
   lines: z.array(z.object({ title: z.string(), qty: z.number().int() })),
+  /** Titles the publisher could not supply; parents are refunded for these lines. */
+  unavailableLines: z.array(z.string()).default([]),
+  dispatch: z
+    .object({
+      deliveryNoteNo: z.string(),
+      carrier: z.string(),
+      driverName: z.string(),
+      driverPhone: z.string(),
+      vehicleReg: z.string(),
+      cartons: z.number().int().positive(),
+      dispatchedAt: isoDateTime,
+      expectedAt: isoDate,
+    })
+    .nullable()
+    .default(null),
+  receipt: z
+    .object({
+      receivedAt: isoDateTime,
+      receivedBy: z.string(),
+      /** What the school flagged on receipt, e.g. a short delivery. */
+      issue: z.string().nullable(),
+      payout: z.enum(["queued", "paid"]),
+    })
+    .nullable()
+    .default(null),
 })
 export type SchoolBatch = z.infer<typeof schoolBatchSchema>
 

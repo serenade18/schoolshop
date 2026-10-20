@@ -132,3 +132,11 @@ export const useSaveCatalogItem = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }),
   })
 }
+
+export const useDispatchBatch = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: endpoints.DispatchInput }) => endpoints.dispatchBatch(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.publisherBatches }),
+  })
+}

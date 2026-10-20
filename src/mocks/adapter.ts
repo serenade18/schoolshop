@@ -28,6 +28,9 @@ const findUser = (identifier: string) =>
   db.demoUsers[identifier] ?? Object.values(db.demoUsers).find((u) => u.email && u.email.toLowerCase() === identifier.toLowerCase())
 const tokensFor = (user: (typeof db.demoUsers)[string]) => ({ access: `mock-access-${user.id}`, refresh: `mock-refresh-${user.id}`, user })
 
+const batches = new Map(db.publisherBatches.map((b) => [b.id, structuredClone(b)]))
+let deliveryNoteSeq = 1042
+
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
 
@@ -213,7 +216,28 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
 
   ["get", "/school/overview/", () => db.schoolOverview],
   ["get", "/school/booklists/", () => db.booklists.map(db.summarise)],
-  ["get", "/publisher/batches/", () => db.publisherBatches],
+  ["get", "/publisher/batches/", () => [...batches.values()]],
+  ["post", "/publisher/batches/:id/dispatch/", ({ params, body }) => {
+    const batch = batches.get(params.id) ?? raise(notFound())
+    if (batch.status !== "ready_to_pack") throw new HttpError(409, { detail: "This batch isn't ready to dispatch." })
+    const unavailable = ((body.unavailableLines as string[]) ?? []).filter((t) => batch.lines.some((l) => l.title === t))
+    if (unavailable.length === batch.lines.length) throw new HttpError(400, { unavailableLines: ["At least one title must be in the delivery."] })
+    Object.assign(batch, {
+      status: "dispatched",
+      unavailableLines: unavailable,
+      dispatch: {
+        deliveryNoteNo: `DN-${++deliveryNoteSeq}`,
+        carrier: String(body.carrier),
+        driverName: String(body.driverName),
+        driverPhone: String(body.driverPhone),
+        vehicleReg: String(body.vehicleReg).toUpperCase(),
+        cartons: Number(body.cartons),
+        dispatchedAt: new Date().toISOString().replace("Z", "+00:00"),
+        expectedAt: String(body.expectedAt),
+      },
+    })
+    return batch
+  }],
   ["get", "/publisher/catalog/", () => [...catalog.values()]],
   ["post", "/publisher/catalog/", ({ body }) => {
     const isbn = body.isbn ? String(body.isbn) : null
