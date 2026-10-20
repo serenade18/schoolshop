@@ -1,6 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, SchoolStaffRole } from "@/lib/api/schemas"
+import type { Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail } from "@/lib/api/schemas"
+import { ownerRole, permissionsFor, roleDef, type OrgType } from "@/lib/access"
 import * as db from "@/mocks/fixtures"
 
 /*
@@ -27,16 +28,13 @@ const maskPhone = (e164: string) => { const l = e164.replace(/^254/, "0"); retur
 const maskEmail = (email: string) => email.replace(/^(.)[^@]*/, "$1•••")
 const findUser = (identifier: string) =>
   db.demoUsers[identifier] ?? Object.values(db.demoUsers).find((u) => u.email && u.email.toLowerCase() === identifier.toLowerCase())
-const tokensFor = (user: (typeof db.demoUsers)[string]) => ({ access: `mock-access-${user.id}`, refresh: `mock-refresh-${user.id}`, user })
+const tokensFor = (user: (typeof db.demoUsers)[string]) => ({ access: `mock-access-${user.id}`, refresh: `mock-refresh-${user.id}`, user: withAccess(user, true) })
 
 const batches = new Map(db.publisherBatches.map((b) => [b.id, structuredClone(b)]))
 let deliveryNoteSeq = 1042
 
 const payouts = structuredClone(db.publisherPayouts)
 const settings = structuredClone(db.publisherSettings)
-let teamSeq = 10
-const findTeam = (id: string) => settings.team.find((m) => m.id === id) ?? raise(notFound())
-const admins = () => settings.team.filter((m) => m.role === "admin" && m.status === "active")
 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
@@ -58,15 +56,6 @@ function checkBooklist(list: Booklist, forPublish: boolean) {
 }
 
 const schoolSettings = structuredClone(db.schoolSettings)
-let staffSeq = 10
-const findStaff = (id: string) => schoolSettings.team.find((m) => m.id === id) ?? raise(notFound())
-const schoolAdmins = () => schoolSettings.team.filter((m) => m.role === "school_admin" && m.status === "active")
-const validClasses = (names: unknown) => {
-  const list = Array.isArray(names) ? names.map(String) : []
-  const bad = list.find((c) => !schoolSettings.classNames.includes(c))
-  if (bad) throw new HttpError(400, { classNames: [`${bad} isn't a class at this school.`] })
-  return list
-}
 /** Wrong-code attempts per class; five in a row locks that class for a minute. */
 const codeAttempts = new Map<string, { wrong: number; lockedUntil: number }>()
 
@@ -93,6 +82,160 @@ function collectionRow(o: SchoolOrderDetail): CollectionRow {
     collectedAt: o.collectedAt,
     parentPhone: o.parentPhone,
   }
+}
+
+/* ── Staff and access ─────────────────────────────────────────── */
+
+const directories = structuredClone(db.staffDirectories)
+let staffSeq = 100
+const scopeOrg: Record<string, OrgType> = { school: "school", publisher: "publisher", admin: "platform" }
+const sameContact = (a: string, b: string | null) => !!b && a.toLowerCase() === b.toLowerCase()
+const usersById = () => Object.values(db.demoUsers)
+
+/** The staff record behind a signed-in user at one kind of organisation. */
+function staffRecord(userId: string | null, orgType: OrgType) {
+  const user = usersById().find((u) => u.id === userId)
+  if (!user) return null
+  const member = directories[orgType].members.find((m) => sameContact(m.contact, user.phone) || sameContact(m.contact, user.email))
+  return member ? { user, member } : null
+}
+
+/** The user with each membership's current role, permissions and classes. Suspended staff can't sign in. */
+function withAccess(user: (typeof db.demoUsers)[string], signingIn = false) {
+  const memberships = user.memberships.map((m) => {
+    const rec = staffRecord(user.id, m.orgType)
+    if (rec?.member.status === "suspended" && signingIn) throw new HttpError(403, { password: ["Your access has been paused by your admin. Ask them to turn it back on."] })
+    if (rec && rec.member.status === "invited") rec.member.status = "active"
+    return { ...m, staffRole: rec?.member.role ?? "", permissions: rec ? permissionsFor(m.orgType, rec.member.role) : [], classNames: rec?.member.classNames ?? [] }
+  })
+  return { ...user, memberships }
+}
+
+/** Which permission each API call needs. First match wins. */
+const guards: Array<[method: string, path: RegExp, orgType: OrgType, permission: string]> = [
+  ["get", /^\/school\/overview\/$/, "school", "overview.view"],
+  ["*", /^\/school\/(booklists|catalog)\//, "school", "booklists.manage"],
+  ["post", /^\/school\/orders\/remind\/$/, "school", "orders.remind"],
+  ["get", /^\/school\/orders\//, "school", "orders.view"],
+  ["*", /^\/school\/deliveries\//, "school", "deliveries.receive"],
+  ["*", /^\/school\/collection\//, "school", "collection.handout"],
+  ["*", /^\/school\/settings\//, "school", "settings.manage"],
+  ["*", /^\/school\/staff\//, "school", "staff.manage"],
+  ["post", /^\/publisher\/batches\/[^/]+\/dispatch\/$/, "publisher", "dispatch.manage"],
+  ["get", /^\/publisher\/batches\/$/, "publisher", "orders.view"],
+  ["*", /^\/publisher\/catalog\//, "publisher", "catalog.manage"],
+  ["put", /^\/publisher\/payout-account\/$/, "publisher", "payouts.manage"],
+  ["get", /^\/publisher\/payouts\/$/, "publisher", "payouts.view"],
+  ["*", /^\/publisher\/settings\//, "publisher", "settings.manage"],
+  ["*", /^\/publisher\/staff\//, "publisher", "staff.manage"],
+  ["get", /^\/admin\/overview\/$/, "platform", "overview.view"],
+  ["*", /^\/admin\/staff\//, "platform", "staff.manage"],
+]
+
+function checkAccess(method: string, path: string, userId: string | null) {
+  const guard = guards.find(([m, re]) => (m === "*" || m === method) && re.test(path))
+  if (!guard) return
+  const [, , orgType, permission] = guard
+  const rec = staffRecord(userId, orgType)
+  if (!rec) throw new HttpError(401, { detail: "Sign in again." })
+  if (rec.member.status === "suspended") throw new HttpError(403, { detail: "Your access has been paused by your admin." })
+  if (!permissionsFor(orgType, rec.member.role).includes(permission)) {
+    throw new HttpError(403, { detail: `Your role (${roleDef(orgType, rec.member.role)?.label ?? rec.member.role}) can't do this. Ask an admin if you need it.` })
+  }
+}
+
+/** Teachers see and hand out packs only for their classes. */
+function classScope(userId: string | null) {
+  const rec = staffRecord(userId, "school")
+  return rec && roleDef("school", rec.member.role)?.scopedToClasses ? new Set(rec.member.classNames) : null
+}
+
+function directoryFor(scope: string, userId: string | null) {
+  const orgType = scopeOrg[scope]
+  const me = staffRecord(userId, orgType)
+  const d = directories[orgType]
+  return {
+    members: d.members.map((m) => ({ ...m, isYou: m.id === me?.member.id })),
+    activity: d.activity.slice(0, 12),
+    classNames: orgType === "school" ? db.schoolGrades.flatMap((g) => g.classNames) : [],
+  }
+}
+
+function logStaff(orgType: OrgType, userId: string | null, text: string) {
+  const actor = usersById().find((u) => u.id === userId)?.name ?? "Someone"
+  directories[orgType].activity.unshift({ id: `a-${++staffSeq}`, at: new Date().toISOString(), actor, text })
+}
+
+const staffRoutes: Array<[method: string, pattern: string, handler: (ctx: { params: Record<string, string>; body: Record<string, unknown>; userId: string | null }) => unknown]> = [
+  ["get", "/:scope/staff/", ({ params, userId }) => directoryFor(params.scope, userId)],
+  ["post", "/:scope/staff/", ({ params, body, userId }) => {
+    const orgType = scopeOrg[params.scope]
+    const d = directories[orgType]
+    const name = String(body.name ?? "").trim()
+    const contact = String(body.contact ?? "").trim()
+    const role = roleDef(orgType, String(body.role ?? "")) ?? raise(new HttpError(400, { role: ["Choose a role."] }))
+    if (name.length < 2) throw new HttpError(400, { name: ["Enter their name."] })
+    if (d.members.some((m) => sameContact(m.contact, contact))) throw new HttpError(400, { contact: ["Someone here already uses this."] })
+    const classNames = role.scopedToClasses ? validClasses(body.classNames) : []
+    if (role.scopedToClasses && classNames.length === 0) throw new HttpError(400, { classNames: ["Choose at least one class."] })
+    d.members.push({ id: `sm-${++staffSeq}`, name, contact, role: role.id, classNames, status: "invited", lastActiveAt: null })
+    logStaff(orgType, userId, `invited ${name} as ${role.label}${classNames.length ? ` for ${classNames.join(", ")}` : ""}`)
+    return directoryFor(params.scope, userId)
+  }],
+  ["patch", "/:scope/staff/:id/", ({ params, body, userId }) => {
+    const orgType = scopeOrg[params.scope]
+    const d = directories[orgType]
+    const member = d.members.find((m) => m.id === params.id) ?? raise(notFound())
+    const me = staffRecord(userId, orgType)?.member
+    const owners = () => d.members.filter((m) => m.role === ownerRole[orgType] && m.status === "active")
+    if (member.id === me?.id && (body.role !== undefined || body.status !== undefined)) throw new HttpError(400, { detail: "You can't change your own role or access. Ask another admin." })
+    if (body.role !== undefined) {
+      const role = roleDef(orgType, String(body.role)) ?? raise(new HttpError(400, { role: ["Choose a role."] }))
+      if (member.role === ownerRole[orgType] && role.id !== member.role && owners().length === 1) throw new HttpError(400, { role: [`Keep at least one ${roleDef(orgType, ownerRole[orgType])!.label}.`] })
+      if (role.id !== member.role) logStaff(orgType, userId, `made ${member.name} ${role.label}`)
+      member.role = role.id
+      if (!role.scopedToClasses) member.classNames = []
+    }
+    if (body.classNames !== undefined) {
+      const classNames = validClasses(body.classNames)
+      if (roleDef(orgType, member.role)?.scopedToClasses && classNames.length === 0) throw new HttpError(400, { classNames: ["Choose at least one class."] })
+      member.classNames = classNames
+      logStaff(orgType, userId, `set ${member.name}'s classes to ${classNames.join(", ")}`)
+    }
+    if (body.status === "suspended" || body.status === "active") {
+      if (body.status === "suspended" && member.role === ownerRole[orgType] && owners().length === 1) throw new HttpError(400, { detail: `Keep at least one ${roleDef(orgType, ownerRole[orgType])!.label}.` })
+      if (member.status === "invited" && body.status === "active") throw new HttpError(400, { detail: "They need to accept the invite first." })
+      member.status = body.status
+      logStaff(orgType, userId, body.status === "suspended" ? `paused ${member.name}'s access` : `turned ${member.name}'s access back on`)
+    }
+    return directoryFor(params.scope, userId)
+  }],
+  ["delete", "/:scope/staff/:id/", ({ params, userId }) => {
+    const orgType = scopeOrg[params.scope]
+    const d = directories[orgType]
+    const member = d.members.find((m) => m.id === params.id) ?? raise(notFound())
+    if (member.id === staffRecord(userId, orgType)?.member.id) throw new HttpError(400, { detail: "You can't remove yourself." })
+    if (member.role === ownerRole[orgType] && d.members.filter((m) => m.role === member.role && m.status === "active").length === 1 && member.status === "active")
+      throw new HttpError(400, { detail: `Keep at least one ${roleDef(orgType, ownerRole[orgType])!.label}.` })
+    d.members = d.members.filter((m) => m.id !== member.id)
+    logStaff(orgType, userId, `removed ${member.name}`)
+    return directoryFor(params.scope, userId)
+  }],
+  ["post", "/:scope/staff/:id/resend/", ({ params, userId }) => {
+    const orgType = scopeOrg[params.scope]
+    const member = directories[orgType].members.find((m) => m.id === params.id) ?? raise(notFound())
+    if (member.status !== "invited") throw new HttpError(400, { detail: `${member.name} has already joined.` })
+    logStaff(orgType, userId, `resent ${member.name}'s invite`)
+    return directoryFor(params.scope, userId)
+  }],
+]
+
+function validClasses(names: unknown) {
+  const all = db.schoolGrades.flatMap((g) => g.classNames)
+  const list = Array.isArray(names) ? names.map(String) : []
+  const bad = list.find((c) => !all.includes(c))
+  if (bad) throw new HttpError(400, { classNames: [`${bad} isn't a class at this school.`] })
+  return list
 }
 
 class HttpError extends Error {
@@ -393,9 +536,17 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
         (!q || `${c.title} ${c.publisherName} ${c.subject} ${c.isbn ?? ""} ${c.gradeLabel}`.toLowerCase().includes(q))
     )
   }],
-  ["get", "/school/collection/", () => [...schoolOrders.values()].filter((o) => ["in_fulfilment", "at_school", "collected"].includes(o.status)).map(collectionRow)],
-  ["post", "/school/collection/handover/", ({ body }) => {
+  ["get", "/me/", ({ userId }) => withAccess(usersById().find((u) => u.id === userId) ?? raise(new HttpError(401, { detail: "Sign in again." })))],
+  ["get", "/school/collection/", ({ userId }) => {
+    const scope = classScope(userId)
+    return [...schoolOrders.values()]
+      .filter((o) => ["in_fulfilment", "at_school", "collected"].includes(o.status) && (!scope || scope.has(o.className)))
+      .map(collectionRow)
+  }],
+  ["post", "/school/collection/handover/", ({ body, userId }) => {
     const className = String(body.className ?? "")
+    const scope = classScope(userId)
+    if (scope && !scope.has(className)) throw new HttpError(403, { code: [`You hand out packs for ${[...scope].join(", ")} only.`] })
     const code = String(body.code ?? "").trim()
     if (!/^\d{4}$/.test(code)) throw new HttpError(400, { code: ["Collection codes are 4 digits."] })
     const attempts = codeAttempts.get(className) ?? { wrong: 0, lockedUntil: 0 }
@@ -446,32 +597,6 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
       smsWhenAtSchool: !!body.smsWhenAtSchool,
       collectionPoint: body.collectionPoint === "school_office" ? "school_office" : "class_teacher",
     }
-    return schoolSettings
-  }],
-  ["post", "/school/team/", ({ body }) => {
-    const contact = String(body.contact ?? "")
-    if (schoolSettings.team.some((m) => m.contact.toLowerCase() === contact.toLowerCase())) throw new HttpError(400, { contact: ["Someone on your staff already uses this."] })
-    const role = body.role as SchoolStaffRole
-    const classNames = role === "teacher" ? validClasses(body.classNames) : []
-    if (role === "teacher" && classNames.length === 0) throw new HttpError(400, { classNames: ["Choose at least one class for this teacher."] })
-    schoolSettings.team.push({ id: `st-${++staffSeq}`, name: String(body.name), contact, role, classNames, status: "invited", isYou: false })
-    return schoolSettings
-  }],
-  ["patch", "/school/team/:id/", ({ params, body }) => {
-    const member = findStaff(params.id)
-    if (body.role && member.isYou) throw new HttpError(400, { role: ["You can't change your own role."] })
-    if (body.role && member.role === "school_admin" && body.role !== "school_admin" && schoolAdmins().length === 1)
-      throw new HttpError(400, { role: ["The school needs at least one admin."] })
-    if (body.role) member.role = body.role as typeof member.role
-    if (body.classNames !== undefined) member.classNames = validClasses(body.classNames)
-    if (member.role !== "teacher") member.classNames = []
-    return schoolSettings
-  }],
-  ["delete", "/school/team/:id/", ({ params }) => {
-    const member = findStaff(params.id)
-    if (member.isYou) throw new HttpError(400, { detail: "You can't remove yourself." })
-    if (member.role === "school_admin" && schoolAdmins().length === 1) throw new HttpError(400, { detail: "The school needs at least one admin." })
-    schoolSettings.team = schoolSettings.team.filter((m) => m.id !== member.id)
     return schoolSettings
   }],
 
@@ -558,25 +683,6 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     settings.notifications = body as typeof settings.notifications
     return settings
   }],
-  ["post", "/publisher/team/", ({ body }) => {
-    const contact = String(body.contact)
-    if (settings.team.some((m) => m.contact.toLowerCase() === contact.toLowerCase())) throw new HttpError(400, { contact: ["Someone on your team already uses this."] })
-    settings.team.push({ id: `tm-${++teamSeq}`, name: String(body.name), contact, role: body.role as "admin", status: "invited", isYou: false })
-    return settings
-  }],
-  ["patch", "/publisher/team/:id/", ({ params, body }) => {
-    const m = findTeam(params.id)
-    if (m.role === "admin" && body.role !== "admin" && admins().length === 1 && m.status === "active") throw new HttpError(400, { role: ["Your team needs at least one admin."] })
-    m.role = body.role as typeof m.role
-    return settings
-  }],
-  ["delete", "/publisher/team/:id/", ({ params }) => {
-    const m = findTeam(params.id)
-    if (m.isYou) throw new HttpError(400, { detail: "You can't remove yourself." })
-    if (m.role === "admin" && m.status === "active" && admins().length === 1) throw new HttpError(400, { detail: "Your team needs at least one admin." })
-    settings.team = settings.team.filter((x) => x.id !== m.id)
-    return settings
-  }],
   ["put", "/publisher/payout-account/", ({ body }) => {
     const number = String(body.number ?? "").replace(/\s/g, "")
     const method = body.method as PublisherPayouts["account"]["method"]
@@ -644,14 +750,33 @@ export const mockAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
 
   const respond = (status: number, data: unknown): AxiosResponse => ({ data, status, statusText: String(status), headers: {}, config })
 
+  const auth = String(config.headers?.Authorization ?? "")
+  const userId = auth.startsWith("Bearer mock-access-") ? auth.slice("Bearer mock-access-".length) : null
+  const fail = (e: unknown) => {
+    if (e instanceof HttpError) throw new AxiosError(e.message, String(e.status), config, null, respond(e.status, e.data))
+    throw e
+  }
+  try {
+    checkAccess(method, url.pathname, userId)
+  } catch (e) {
+    fail(e)
+  }
+  for (const [m, pattern, handler] of staffRoutes) {
+    const params = m === method ? match(pattern, url.pathname) : null
+    if (!params || !(params.scope in scopeOrg)) continue
+    try {
+      return respond(method === "post" && !pattern.endsWith("/resend/") ? 201 : 200, structuredClone(handler({ params, body, userId })))
+    } catch (e) {
+      fail(e)
+    }
+  }
+
   for (const [m, pattern, handler] of routes) {
     if (m !== method) continue
     const params = match(pattern, url.pathname)
     if (!params) continue
     try {
       const created = method === "post" && !pattern.startsWith("/auth/")
-      const auth = String(config.headers?.Authorization ?? "")
-      const userId = auth.startsWith("Bearer mock-access-") ? auth.slice("Bearer mock-access-".length) : null
       return respond(created ? 201 : 200, structuredClone(handler({ params, query, body, userId })))
     } catch (e) {
       if (e instanceof HttpError) {

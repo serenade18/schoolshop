@@ -1,8 +1,8 @@
 import { useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link } from "react-router"
-import { BadgeCheck, Lock, Mail, Smartphone, Trash2, UserPlus } from "lucide-react"
+import { BadgeCheck, Lock } from "lucide-react"
 import { z } from "zod"
 
 import { PageHeader } from "@/components/common/PageHeader"
@@ -14,18 +14,11 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { NativeSelect } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ApiError } from "@/lib/api/client"
 import * as endpoints from "@/lib/api/endpoints"
 import { usePublisherSettings, useSettingsMutation } from "@/lib/api/queries"
-import type { NotificationEvent, PublisherSettings, TeamMember, TeamRole } from "@/lib/api/schemas"
-import { formatDayLong, normaliseIdentifier, normaliseKenyanPhone } from "@/lib/format"
+import type { NotificationEvent, PublisherSettings } from "@/lib/api/schemas"
+import { formatDayLong, normaliseKenyanPhone } from "@/lib/format"
 import { counties, errorText, showContact } from "@/lib/settings"
-
-const roles: Record<TeamRole, { label: string; can: string }> = {
-  admin: { label: "Admin", can: "Everything, including team and payout details" },
-  warehouse: { label: "Warehouse", can: "School orders, catalog stock and dispatches" },
-  finance: { label: "Finance", can: "Payouts and statements" },
-}
 
 const events: { id: NotificationEvent; label: string; hint: string; smsAllowed: boolean }[] = [
   { id: "batch_ready", label: "A school's order is ready to pack", hint: "When a school's order window closes", smsAllowed: true },
@@ -37,7 +30,6 @@ const events: { id: NotificationEvent; label: string; hint: string; smsAllowed: 
 
 const sections = [
   { id: "company", label: "Company" },
-  { id: "team", label: "Team" },
   { id: "notifications", label: "Notifications" },
   { id: "security", label: "Security" },
 ]
@@ -52,7 +44,6 @@ export function PublisherSettingsPage() {
         {(data) => (
           <div className="flex max-w-4xl flex-col gap-6">
             <CompanySection data={data} />
-            <TeamSection team={data.team} />
             <NotificationsSection value={data.notifications} />
             <ChangePasswordSection description="Your own sign-in. Each team member has their own password." />
           </div>
@@ -146,141 +137,6 @@ function CompanySection({ data }: { data: PublisherSettings }) {
         Payout details are on the <Link to="/publisher/payouts" className="font-semibold text-accent-text hover:underline">Payouts</Link> page.
       </p>
     </SettingsSection>
-  )
-}
-
-/* ── Team ────────────────────────────────────────────────────── */
-
-const inviteSchema = z.object({
-  name: z.string().trim().min(2, "Enter their name"),
-  contact: z.string().trim().refine((v) => normaliseIdentifier(v) !== null, "Enter a Kenyan mobile number or an email"),
-  role: z.enum(["admin", "warehouse", "finance"]),
-})
-type InviteValues = z.infer<typeof inviteSchema>
-
-function TeamSection({ team }: { team: TeamMember[] }) {
-  const [inviting, setInviting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const changeRole = useSettingsMutation(({ id, role }: { id: string; role: TeamRole }) => endpoints.updateTeamMember(id, { role }))
-  const remove = useSettingsMutation(endpoints.removeTeamMember)
-
-  return (
-    <SettingsSection
-      id="team"
-      title="Team"
-      description="Everyone who works on SchoolShop orders for your company."
-      action={!inviting && <Button variant="outline" onClick={() => setInviting(true)}><UserPlus aria-hidden /> Invite</Button>}
-    >
-      {inviting && <InviteForm onDone={() => setInviting(false)} />}
-      {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
-      <ul className="flex flex-col divide-y rounded-xl border">
-        {team.map((m) => (
-          <li key={m.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-            <span className="flex min-w-0 grow items-center gap-3">
-              <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-teal-light font-display font-semibold text-teal">
-                {m.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="flex flex-wrap items-center gap-2 font-semibold">
-                  {m.name}
-                  {m.isYou && <Badge variant="secondary">You</Badge>}
-                  {m.status === "invited" && <Badge variant="warning">Invite sent</Badge>}
-                </span>
-                <span className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
-                  {m.contact.includes("@") ? <Mail className="size-3.5 shrink-0" aria-hidden /> : <Smartphone className="size-3.5 shrink-0" aria-hidden />}
-                  {showContact(m.contact)}
-                </span>
-              </span>
-            </span>
-            <span className="flex items-center gap-2 sm:shrink-0">
-              <span className="grow sm:w-40 sm:grow-0">
-                <NativeSelect
-                  aria-label={`Role for ${m.name}`}
-                  value={m.role}
-                  disabled={m.isYou || changeRole.isPending}
-                  onChange={(e) => {
-                    setError(null)
-                    changeRole.mutate({ id: m.id, role: e.target.value as TeamRole }, { onError: (err) => setError(errorText(err, "role")) })
-                  }}
-                  className="h-11"
-                >
-                  {(Object.keys(roles) as TeamRole[]).map((r) => <option key={r} value={r}>{roles[r].label}</option>)}
-                </NativeSelect>
-              </span>
-              {!m.isYou && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove ${m.name}`}
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    if (!window.confirm(`Remove ${m.name} from your team? They lose access straight away.`)) return
-                    setError(null)
-                    remove.mutate(m.id, { onError: (err) => setError(errorText(err)) })
-                  }}
-                >
-                  <Trash2 aria-hidden />
-                </Button>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <dl className="grid gap-3 text-sm sm:grid-cols-3">
-        {(Object.keys(roles) as TeamRole[]).map((r) => (
-          <div key={r} className="flex flex-col gap-0.5 rounded-xl bg-paper p-3">
-            <dt className="font-semibold">{roles[r].label}</dt>
-            <dd className="text-muted-foreground">{roles[r].can}</dd>
-          </div>
-        ))}
-      </dl>
-    </SettingsSection>
-  )
-}
-
-function InviteForm({ onDone }: { onDone: () => void }) {
-  const form = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { name: "", contact: "", role: "warehouse" } })
-  const invite = useSettingsMutation(endpoints.inviteTeamMember)
-  const contact = useWatch({ control: form.control, name: "contact" })
-  return (
-    <Form {...form}>
-      <form
-        noValidate
-        className="flex flex-col gap-4 rounded-xl border-2 border-primary/30 bg-teal-light/40 p-4"
-        onSubmit={form.handleSubmit((v) =>
-          invite.mutate(
-            { ...v, contact: normaliseIdentifier(v.contact)! },
-            {
-              onSuccess: onDone,
-              onError: (e) => form.setError(e instanceof ApiError && e.fieldErrors.contact ? "contact" : "root", { message: errorText(e, "contact") }),
-            }
-          )
-        )}
-      >
-        <h3 className="font-semibold">Invite someone</h3>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="contact" render={({ field }) => (
-            <FormItem><FormLabel>Phone or email</FormLabel><FormControl><Input placeholder="0711 222 333" {...field} /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="role" render={({ field }) => (
-            <FormItem><FormLabel>Role</FormLabel><FormControl>
-              <NativeSelect {...field}>{(Object.keys(roles) as TeamRole[]).map((r) => <option key={r} value={r}>{roles[r].label}</option>)}</NativeSelect>
-            </FormControl><FormMessage /></FormItem>
-          )} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          We'll send them {contact.includes("@") ? "an email" : "an SMS"} with a link to set up their account.
-        </p>
-        {form.formState.errors.root && <p role="alert" className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>}
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={invite.isPending}>{invite.isPending ? "Sending…" : "Send invite"}</Button>
-          <Button type="button" variant="outline" onClick={onDone}>Cancel</Button>
-        </div>
-      </form>
-    </Form>
   )
 }
 

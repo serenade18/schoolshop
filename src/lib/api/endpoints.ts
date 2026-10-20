@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { api } from "@/lib/api/client"
-import type { PublisherSettings, SchoolSettings, SchoolStaffRole, TeamRole } from "@/lib/api/schemas"
+import type { PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
 import {
   accountSchema,
   adminOverviewSchema,
@@ -30,6 +30,7 @@ import {
   schoolOverviewSchema,
   schoolSchema,
   schoolSettingsSchema,
+  staffDirectorySchema,
   userSchema,
 } from "@/lib/api/schemas"
 
@@ -164,16 +165,6 @@ export const updateParentSettings = async (input: SchoolSettings["parents"]) => 
   const { data } = await api.put("/school/settings/parents/", input)
   return schoolSettingsSchema.parse(data)
 }
-export const inviteSchoolStaff = (input: { name: string; contact: string; role: SchoolStaffRole; classNames: string[] }) =>
-  post("/school/team/", schoolSettingsSchema, input)
-export const updateSchoolStaff = async (id: string, input: { role?: SchoolStaffRole; classNames?: string[] }) => {
-  const { data } = await api.patch(`/school/team/${id}/`, input)
-  return schoolSettingsSchema.parse(data)
-}
-export const removeSchoolStaff = async (id: string) => {
-  const { data } = await api.delete(`/school/team/${id}/`)
-  return schoolSettingsSchema.parse(data)
-}
 
 export const listSchoolDeliveries = () => get("/school/deliveries/", z.array(schoolDeliverySchema))
 export const getSchoolDelivery = (id: string) => get(`/school/deliveries/${id}/`, schoolDeliverySchema)
@@ -240,18 +231,24 @@ export const updateNotifications = async (input: PublisherSettings["notification
   return publisherSettingsSchema.parse(data)
 }
 /** contact is a 2547… phone number or an email; they get an SMS or email invite. */
-export const inviteTeamMember = (input: { name: string; contact: string; role: TeamRole }) =>
-  post("/publisher/team/", publisherSettingsSchema, input)
-export const updateTeamMember = async (id: string, input: { role: TeamRole }) => {
-  const { data } = await api.patch(`/publisher/team/${id}/`, input)
-  return publisherSettingsSchema.parse(data)
-}
-export const removeTeamMember = async (id: string) => {
-  const { data } = await api.delete(`/publisher/team/${id}/`)
-  return publisherSettingsSchema.parse(data)
-}
 export const changePassword = (input: { currentPassword: string; newPassword: string }) =>
   post("/auth/password/change/", z.object({ changed: z.literal(true) }), input)
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)
+
+// Staff and roles, the same shape for schools, publishers and SchoolShop itself.
+export type StaffScope = "school" | "publisher" | "admin"
+export type StaffChange = { role?: string; classNames?: string[]; status?: "active" | "suspended" }
+export const getStaff = (scope: StaffScope) => get(`/${scope}/staff/`, staffDirectorySchema)
+export const inviteStaff = (scope: StaffScope, input: { name: string; contact: string; role: string; classNames: string[] }) =>
+  post(`/${scope}/staff/`, staffDirectorySchema, input)
+export const updateStaff = async (scope: StaffScope, id: string, input: StaffChange) => {
+  const { data } = await api.patch(`/${scope}/staff/${id}/`, input)
+  return staffDirectorySchema.parse(data)
+}
+export const removeStaff = async (scope: StaffScope, id: string) => {
+  const { data } = await api.delete(`/${scope}/staff/${id}/`)
+  return staffDirectorySchema.parse(data)
+}
+export const resendStaffInvite = (scope: StaffScope, id: string) => post(`/${scope}/staff/${id}/resend/`, staffDirectorySchema)

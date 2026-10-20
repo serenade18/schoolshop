@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { Account, CollectionRow, PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
+import type { Account, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
 import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
@@ -23,6 +23,7 @@ export const queryKeys = {
   collection: ["school-collection"] as const,
   schoolSettings: ["school-settings"] as const,
   account: ["account"] as const,
+  staff: (scope: string) => ["staff", scope] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
@@ -171,6 +172,17 @@ export const useRemoveChild = () => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: endpoints.removeChild, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.children }) })
 }
+
+export const useStaff = (scope: endpoints.StaffScope) => useQuery({ queryKey: queryKeys.staff(scope), queryFn: () => endpoints.getStaff(scope) })
+
+/** Wraps a staff call that returns the whole directory, and caches it. */
+export function useStaffMutation<V>(scope: endpoints.StaffScope, fn: (vars: V) => Promise<StaffDirectory>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: (data) => qc.setQueryData(queryKeys.staff(scope), data) })
+}
+
+/** The signed-in user as the API sees them now, so a role change applies without signing in again. */
+export const useMe = (enabled: boolean) => useQuery({ queryKey: queryKeys.me, queryFn: endpoints.getMe, enabled, refetchOnWindowFocus: true, retry: false })
 
 export const useAccount = () => useQuery({ queryKey: queryKeys.account, queryFn: endpoints.getAccount })
 

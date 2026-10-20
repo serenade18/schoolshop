@@ -147,7 +147,7 @@ function LeaveSection() {
       {deletion.isSuccess && <p role="status" className="rounded-xl bg-info-bg p-3.5 text-sm text-info-fg">Request received. We'll SMS you within 2 working days to confirm before anything is deleted.</p>}
       {deletion.error && <p role="alert" className="rounded-xl bg-warn-bg p-3.5 text-sm text-warn-fg">{errorText(deletion.error)}</p>}
       <div className="flex flex-wrap gap-3">
-        <Button variant="outline" onClick={() => { signOut(); navigate("/sign-in") }}><LogOut aria-hidden /> Sign out</Button>
+        <Button variant="outline" onClick={() => { signOut(); navigate("/") }}><LogOut aria-hidden /> Sign out</Button>
         <Button
           variant="ghost"
           className="text-destructive hover:bg-destructive/10"
