@@ -77,6 +77,8 @@ export const booklistItemSchema = z.object({
   unitPriceCents: cents,
   qtyPerStudent: z.number().int().positive(),
   required: z.boolean(),
+  /** The teacher's note to parents, e.g. "Last year's copy is fine if it's in good condition". */
+  note: z.string().nullable().default(null),
 })
 export type BooklistItem = z.infer<typeof booklistItemSchema>
 

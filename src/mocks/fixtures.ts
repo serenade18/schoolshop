@@ -38,8 +38,9 @@ const item = (
   subject: string,
   price: number,
   required = true,
-  qtyPerStudent = 1
-) => ({ id, productId: `prd-${id}`, title, publisherName, subject, unitPriceCents: k(price), qtyPerStudent, required })
+  qtyPerStudent = 1,
+  note: string | null = null
+) => ({ id, productId: `prd-${id}`, title, publisherName, subject, unitPriceCents: k(price), qtyPerStudent, required, note })
 
 const greenhillBase = {
   schoolId: "sch-greenhill",
@@ -59,12 +60,12 @@ export const booklists: Booklist[] = [
     items: [
       item("g4-math", "Mathematics Activities Grade 4", "Longhorn", "Mathematics", 650),
       item("g4-eng", "English Activities Grade 4", "KLB", "English", 620),
-      item("g4-kis", "Kiswahili Shughuli Gredi 4", "Oxford", "Kiswahili", 640),
+      item("g4-kis", "Kiswahili Shughuli Gredi 4", "Oxford", "Kiswahili", 640, true, 1, "New 2027 edition. Older editions don't match the lessons."),
       item("g4-sci", "Science & Technology Grade 4", "Moran", "Science", 690),
       item("g4-sst", "Social Studies Grade 4", "Longhorn", "Social Studies", 600),
-      item("g4-books", "A4 exercise books, 96 pg (×10)", "Kasuku", "Stationery", 550),
-      item("g4-dict", "Primary Dictionary", "Oxford", "Reference", 1250, false),
-      item("g4-readers", "Class readers set (4 books)", "Storymoja", "Readers", 1400, false),
+      item("g4-books", "A4 exercise books, 96 pg (×10)", "Kasuku", "Stationery", 550, true, 1, "Covered and labelled with your child's name before delivery."),
+      item("g4-dict", "Primary Dictionary", "Oxford", "Reference", 1250, false, 1, "Last year's copy is fine if it's in good condition."),
+      item("g4-readers", "Class readers set (4 books)", "Storymoja", "Readers", 1400, false, 1, "Read at home over the term, then swapped in class."),
     ],
   },
   {
