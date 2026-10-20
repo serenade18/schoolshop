@@ -14,6 +14,7 @@ import type {
   SchoolGrade,
   SchoolDelivery,
   SchoolOrderDetail,
+  SchoolSettings,
   SchoolOverview,
   StudentOrderRow,
   User,
@@ -336,14 +337,17 @@ const seeded = (seed: number) => () => {
 const firstNames = ["Zawadi", "Baraka", "Imani", "Kiprono", "Wanjiru", "Otieno", "Akinyi", "Kamau", "Njeri", "Mutua", "Chebet", "Odhiambo", "Wambui", "Kiptoo", "Nyambura", "Omondi", "Atieno", "Mwangi", "Jepkosgei", "Kibet", "Muthoni", "Ochieng", "Wairimu", "Cheruiyot", "Auma", "Njoroge", "Nekesa", "Wekesa", "Makena", "Kirui"]
 const surnames = ["Otieno", "Kamau", "Wanjiku", "Kiprop", "Mwangi", "Achieng", "Njoroge", "Mutiso", "Koech", "Odera", "Maina", "Chepkemoi", "Owino", "Gitau", "Rotich", "Wafula", "Nduta", "Kimani", "Barasa", "Langat"]
 const parentFirst = ["Achieng", "Grace", "Peter", "Mary", "John", "Faith", "David", "Esther", "Joseph", "Lucy", "Samuel", "Ruth", "James", "Mercy", "Daniel"]
-/** Where each publisher's Greenhill delivery stands. Moran's arrived with two damaged packs. */
+/**
+ * Where each publisher's Greenhill delivery stands. Moran's arrived with two damaged packs. With
+ * Longhorn, Moran, KLB and Kasuku in, PP2 and Grade 7 packs are complete; Grades 1 and 4 wait for Oxford.
+ */
 type DeliveryPlan = Pick<SchoolDelivery, "status" | "expectedAt"> & { noteNo?: string; driver?: [name: string, phone: string, reg: string]; carrier?: string }
 const deliveryPlan: Record<string, DeliveryPlan> = {
   Longhorn: { status: "received", expectedAt: "2027-01-09", noteNo: "LH-DN-1038", driver: ["Joseph Mwangi", "254711222333", "KCX 412M"], carrier: "Own vehicle" },
   Moran: { status: "received", expectedAt: "2027-01-09", noteNo: "MOR-55120", driver: ["Kevin Ouma", "254722431908", "KDA 201K"], carrier: "G4S Courier" },
-  KLB: { status: "dispatched", expectedAt: "2027-01-14", noteNo: "KLB-DN-08812", driver: ["Daniel Kiprotich", "254733118220", "KCZ 908T"], carrier: "Own vehicle" },
+  KLB: { status: "received", expectedAt: "2027-01-14", noteNo: "KLB-DN-08812", driver: ["Daniel Kiprotich", "254733118220", "KCZ 908T"], carrier: "Own vehicle" },
   Oxford: { status: "dispatched", expectedAt: "2027-01-15", noteNo: "OUP-KE-30471", driver: ["Brian Mutai", "254701556781", "KDB 377Q"], carrier: "Sendy" },
-  Kasuku: { status: "ready_to_pack", expectedAt: null },
+  Kasuku: { status: "received", expectedAt: "2027-01-12", noteNo: "KSK-4471", driver: ["Peter Njoroge", "254720664512", "KCT 553L"], carrier: "Own vehicle" },
   Storymoja: { status: "ready_to_pack", expectedAt: null },
 }
 const shipmentByPublisher = Object.fromEntries(Object.entries(deliveryPlan).map(([name, d]) => [name, d.status]))
@@ -359,6 +363,8 @@ export const schoolOrderRows: StudentOrderRow[] = []
 export const schoolOrderDetails: SchoolOrderDetail[] = []
 {
   const rand = seeded(2027)
+  // Separate stream so collection codes don't shift the generated names and orders.
+  const codeRand = seeded(4242)
   const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
   let adm = 1, orderNo = 19000
   for (const g of gradePlan) {
@@ -395,8 +401,11 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
         const paidAt = paid ? `2026-12-${String(10 + Math.floor(rand() * 21)).padStart(2, "0")}T${String(7 + Math.floor(rand() * 13)).padStart(2, "0")}:${String(Math.floor(rand() * 60)).padStart(2, "0")}:00+03:00` : null
         const number = `SS-${orderNo++}`
         const id = `ord-${number.slice(3)}`
-        row.order = { id, number, status: paid ? "in_fulfilment" : status, totalCents: total, itemCount: items.length, paidAt }
         const publishers = [...new Set(items.map((it) => it.publisherName))]
+        const complete = paid && publishers.every((p) => shipmentByPublisher[p] === "received")
+        // Handing out began on 15 Jan: about a third of each complete class has collected so far.
+        const collected = complete && codeRand() < 0.35
+        row.order = { id, number, status: collected ? "collected" : complete ? "at_school" : paid ? "in_fulfilment" : status, totalCents: total, itemCount: items.length, paidAt }
         schoolOrderDetails.push({
           id,
           number,
@@ -406,11 +415,11 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
           className,
           subtotalCents: total,
           totalCents: total,
-          collectionCode: null,
+          collectionCode: paid ? String(1000 + Math.floor(codeRand() * 9000)) : null,
           paidAt,
           mpesaReceipt: paid ? "Q" + Array.from({ length: 9 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(rand() * 32)]).join("") : null,
           expectedAtSchool: paid ? g.list.deliverBy : null,
-          collectedAt: null,
+          collectedAt: collected ? `2027-01-15T${String(8 + Math.floor(codeRand() * 7)).padStart(2, "0")}:${String(Math.floor(codeRand() * 60)).padStart(2, "0")}:00+03:00` : null,
           items,
           shipments: publishers.map((publisherName) => {
             const n = items.filter((it) => it.publisherName === publisherName).length
@@ -430,7 +439,7 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
 export const schoolDeliveries: SchoolDelivery[] = Object.entries(deliveryPlan).map(([publisherName, plan], i) => {
   const perClass = new Map<string, number>()
   for (const o of schoolOrderDetails) {
-    if (o.status !== "in_fulfilment" || !o.items.some((it) => it.publisherName === publisherName)) continue
+    if (!["in_fulfilment", "at_school", "collected"].includes(o.status) || !o.items.some((it) => it.publisherName === publisherName)) continue
     perClass.set(o.className, (perClass.get(o.className) ?? 0) + 1)
   }
   const packs = [...perClass.values()].reduce((a, b) => a + b, 0)
@@ -470,6 +479,30 @@ export const schoolDeliveries: SchoolDelivery[] = Object.entries(deliveryPlan).m
 schoolOverview.deliveries = schoolDeliveries.map((d) => ({ id: d.id, publisherName: d.publisherName, packs: d.packs, status: d.status, date: d.expectedAt }))
 schoolOverview.deliveriesExpected = schoolDeliveries.length
 schoolOverview.deliveriesReceived = schoolDeliveries.filter((d) => d.status === "received").length
+schoolOverview.packsCollected = schoolOrderDetails.filter((o) => o.status === "collected").length
+
+export const schoolSettings: SchoolSettings = {
+  profile: {
+    schoolName: "Greenhill Academy",
+    registrationNo: "MOE/NKR/P/1187",
+    verifiedAt: "2026-08-02T10:15:00+03:00",
+    contactName: "Grace Wambui",
+    phone: "254722000111",
+    email: "office@greenhill.ac.ke",
+    county: "Nakuru",
+    deliveryAddress: "Greenhill Academy, Kabarak Road, Nakuru. Deliveries via the back gate.",
+    deliveryHours: "Mon–Fri, 8am–4pm",
+  },
+  parents: { reminderDays: 3, smsWhenAtSchool: true, collectionPoint: "class_teacher" },
+  team: [
+    { id: "st-1", name: "Grace Wambui", contact: "254722000111", role: "school_admin", classNames: [], status: "active", isYou: true },
+    { id: "st-2", name: "Samuel Kiprop", contact: "254711908765", role: "bursar", classNames: [], status: "active", isYou: false },
+    { id: "st-3", name: "Mercy Achieng", contact: "254733200411", role: "teacher", classNames: ["4 East"], status: "active", isYou: false },
+    { id: "st-4", name: "John Mwangi", contact: "j.mwangi@greenhill.ac.ke", role: "teacher", classNames: ["7 Blue", "7 Green"], status: "active", isYou: false },
+    { id: "st-5", name: "Lucy Chebet", contact: "254799331200", role: "teacher", classNames: ["PP2 Rose", "PP2 Lily"], status: "invited", isYou: false },
+  ],
+  classNames: schoolGrades.flatMap((g) => g.classNames),
+}
 
 /** Longhorn's own catalog, as the demo publisher sees it. */
 export const publisherCatalog: CatalogItem[] = [

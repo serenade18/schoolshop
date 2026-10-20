@@ -49,7 +49,7 @@ export function SchoolOverviewPage() {
               <StatCard
                 label="Packs collected"
                 value={<>{o.packsCollected} <span className="text-base font-medium text-muted-foreground">of {o.studentsOrdered}</span></>}
-                hint="Opens when all deliveries arrive"
+                hint="Handed out class by class with each parent's code"
               />
             </section>
             <div className="flex flex-wrap items-start gap-5">

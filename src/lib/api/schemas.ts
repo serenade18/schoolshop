@@ -471,6 +471,63 @@ export const publisherSettingsSchema = z.object({
 export type PublisherSettings = z.infer<typeof publisherSettingsSchema>
 export type TeamMember = PublisherSettings["team"][number]
 
+/** One paid order's pack, as the school hands it out. */
+export const collectionRowSchema = z.object({
+  orderId: z.string(),
+  orderNumber: z.string(),
+  studentName: z.string(),
+  admissionNo: z.string(),
+  gradeName: z.string(),
+  className: z.string(),
+  itemCount: z.number().int(),
+  /** ready: every publisher's part is at school; waiting: some are still on the way. */
+  status: z.enum(["ready", "waiting", "collected"]),
+  waitingFor: z.array(z.string()),
+  collectedAt: isoDateTime.nullable(),
+  /** Masked parent phone the collection code was sent to. */
+  parentPhone: z.string().nullable(),
+})
+export type CollectionRow = z.infer<typeof collectionRowSchema>
+
+export const schoolStaffRoleSchema = z.enum(["school_admin", "bursar", "teacher"])
+export type SchoolStaffRole = z.infer<typeof schoolStaffRoleSchema>
+
+export const schoolSettingsSchema = z.object({
+  profile: z.object({
+    schoolName: z.string(),
+    /** Ministry of Education registration number, checked when the school joined. */
+    registrationNo: z.string(),
+    verifiedAt: isoDateTime.nullable(),
+    contactName: z.string(),
+    phone: z.string(),
+    email: z.email(),
+    county: z.string(),
+    deliveryAddress: z.string(),
+    deliveryHours: z.string(),
+  }),
+  parents: z.object({
+    /** Days before the order deadline that unpaid parents get an automatic reminder (0 = off). */
+    reminderDays: z.number().int(),
+    smsWhenAtSchool: z.boolean(),
+    collectionPoint: z.enum(["class_teacher", "school_office"]),
+  }),
+  team: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      contact: z.string(),
+      role: schoolStaffRoleSchema,
+      /** Teachers hand out packs for these classes only. */
+      classNames: z.array(z.string()),
+      status: z.enum(["active", "invited"]),
+      isYou: z.boolean(),
+    })
+  ),
+  classNames: z.array(z.string()),
+})
+export type SchoolSettings = z.infer<typeof schoolSettingsSchema>
+export type SchoolStaff = SchoolSettings["team"][number]
+
 export const adminOverviewSchema = z.object({
   termName: z.string(),
   salesCents: cents,

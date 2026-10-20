@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { PublisherSettings } from "@/lib/api/schemas"
+import type { CollectionRow, PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
 
 export const queryKeys = {
   me: ["me"] as const,
@@ -19,6 +19,8 @@ export const queryKeys = {
   myBooklists: ["school-booklists"] as const,
   schoolOrders: ["school-orders"] as const,
   schoolDeliveries: ["school-deliveries"] as const,
+  collection: ["school-collection"] as const,
+  schoolSettings: ["school-settings"] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
@@ -156,6 +158,30 @@ export const useSaveBooklist = () => {
       ])
     },
   })
+}
+
+export const useCollection = () => useQuery({ queryKey: queryKeys.collection, queryFn: endpoints.listCollection })
+
+/** Marks the pack collected in the cached list straight away, then refreshes the overview. */
+export const useHandOverPack = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.handOverPack,
+    onSuccess: (row) => {
+      qc.setQueryData(queryKeys.collection, (rows: CollectionRow[] | undefined) => rows?.map((r) => (r.orderId === row.orderId ? row : r)))
+      return Promise.all([qc.invalidateQueries({ queryKey: queryKeys.schoolOverview }), qc.invalidateQueries({ queryKey: queryKeys.schoolOrders })])
+    },
+  })
+}
+
+export const useResendCode = () => useMutation({ mutationFn: endpoints.resendCollectionCode })
+
+export const useSchoolSettings = () => useQuery({ queryKey: queryKeys.schoolSettings, queryFn: endpoints.getSchoolSettings })
+
+/** Wraps a school settings call that returns the whole settings object, and caches the result. */
+export function useSchoolSettingsMutation<V>(fn: (vars: V) => Promise<SchoolSettings>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: (data) => qc.setQueryData(queryKeys.schoolSettings, data) })
 }
 
 export const useSchoolDeliveries = () =>
