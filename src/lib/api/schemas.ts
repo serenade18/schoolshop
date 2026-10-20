@@ -169,6 +169,8 @@ export const orderSchema = z.object({
   id: z.string(),
   number: z.string(),
   status: orderStatusSchema,
+  /** The school term the order is for, e.g. "Term 1, 2027". */
+  termName: z.string().default("Term 1, 2027"),
   studentName: z.string(),
   schoolName: z.string(),
   className: z.string(),
@@ -527,6 +529,23 @@ export const schoolSettingsSchema = z.object({
 })
 export type SchoolSettings = z.infer<typeof schoolSettingsSchema>
 export type SchoolStaff = SchoolSettings["team"][number]
+
+export const accountSchema = z.object({
+  name: z.string(),
+  /** Verified at sign-up; changing it needs a new one-time code. */
+  phone: z.string(),
+  email: z.email().nullable(),
+  /** Number pre-filled at M-Pesa checkout. */
+  mpesaPhone: z.string(),
+  memberSince: isoDate,
+  notifications: z.object({
+    /** Order and collection SMSes always go out; these are the optional ones. */
+    reminders: z.boolean(),
+    emailReceipts: z.boolean(),
+    offers: z.boolean(),
+  }),
+})
+export type Account = z.infer<typeof accountSchema>
 
 export const adminOverviewSchema = z.object({
   termName: z.string(),

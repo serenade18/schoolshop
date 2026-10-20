@@ -42,6 +42,9 @@ const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)
 let catalogSeq = 100
 
 const booklists = new Map(db.booklists.map((b) => [b.id, structuredClone(b)]))
+let children = db.children.map((c) => structuredClone(c))
+const account = structuredClone(db.parentAccount)
+let childSeq = 1
 const catalogById = new Map(db.schoolCatalog.map((c) => [c.productId, c]))
 const isoDay = /^\d{4}-\d{2}-\d{2}$/
 /** Check a list's dates and items; `forPublish` adds the rules parents depend on. */
@@ -198,19 +201,64 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   }],
   ["get", "/products/:id/", ({ params }) => db.productDetail(db.products.find((p) => p.id === params.id) ?? raise(notFound()))],
 
-  ["get", "/children/", () => db.children.map((c) => {
-    const latest = [...orders.values()].filter((o) => o.studentName === c.name).at(-1)
+  ["get", "/children/", () => children.map((c) => {
+    // Only this term's orders count; last term's collected ones are history.
+    const latest = [...orders.values()].filter((o) => o.studentName === c.name && o.termName === "Term 1, 2027").at(-1)
     return latest
       ? { ...c, openBooklist: latest.status === "pending_payment" ? c.openBooklist : null, latestOrder: { id: latest.id, number: latest.number, status: latest.status, expectedAtSchool: latest.expectedAtSchool } }
       : c
   })],
+  ["post", "/children/", ({ body }) => {
+    const schoolId = db.schoolJoinCodes[String(body.schoolCode ?? "").trim().toUpperCase()]
+    if (!schoolId) throw new HttpError(400, { schoolCode: ["That school code isn't right. It's on the letter or SMS from the school."] })
+    const school = db.schools.find((s) => s.id === schoolId)!
+    const name = String(body.name ?? "").trim()
+    if (name.length < 2) throw new HttpError(400, { name: ["Enter your child's first name."] })
+    const admissionNo = String(body.admissionNo ?? "").trim().toUpperCase()
+    if (children.some((c) => c.schoolId === schoolId && c.admissionNo.toUpperCase() === admissionNo)) throw new HttpError(400, { admissionNo: ["This child is already on your account."] })
+    const student = schoolId === "sch-greenhill" ? schoolRows.find((r) => r.admissionNo === admissionNo) : undefined
+    if (!student) throw new HttpError(400, { admissionNo: [`We couldn't find that admission number at ${school.name}. Check it with the school office.`] })
+    const list = [...booklists.values()].find((b) => b.schoolId === schoolId && b.gradeName === student.gradeName && b.status === "published")
+    const child = { id: `stu-new-${++childSeq}`, name, admissionNo, schoolId, schoolName: school.name, gradeName: student.gradeName, className: student.className, openBooklist: list ? db.summarise(list) : null, latestOrder: null }
+    children = [...children, child]
+    return child
+  }],
+  ["delete", "/children/:id/", ({ params }) => {
+    const child = children.find((c) => c.id === params.id) ?? raise(notFound())
+    const active = [...orders.values()].some((o) => o.studentName === child.name && !["collected", "cancelled", "refunded", "partially_refunded"].includes(o.status))
+    if (active) throw new HttpError(409, { detail: `${child.name} has an order in progress. You can remove them once it's collected.` })
+    children = children.filter((c) => c.id !== child.id)
+    return null
+  }],
+  ["get", "/account/", () => account],
+  ["patch", "/account/", ({ body }) => {
+    const name = String(body.name ?? "").trim()
+    if (name.length < 2) throw new HttpError(400, { name: ["Enter your name."] })
+    const email = body.email ? String(body.email).trim().toLowerCase() : null
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, { email: ["Enter a valid email or leave it empty."] })
+    const mpesaPhone = String(body.mpesaPhone ?? "")
+    if (!/^254[17]\d{8}$/.test(mpesaPhone)) throw new HttpError(400, { mpesaPhone: ["Enter a Kenyan mobile number."] })
+    Object.assign(account, { name, email, mpesaPhone })
+    if (!email) account.notifications.emailReceipts = false
+    return account
+  }],
+  ["put", "/account/notifications/", ({ body }) => {
+    if (body.emailReceipts && !account.email) throw new HttpError(400, { emailReceipts: ["Add an email address first."] })
+    account.notifications = { reminders: !!body.reminders, emailReceipts: !!body.emailReceipts, offers: !!body.offers }
+    return account
+  }],
+  ["post", "/account/deletion/", () => {
+    const active = [...orders.values()].some((o) => !["collected", "cancelled", "refunded", "partially_refunded", "payment_failed"].includes(o.status))
+    if (active) throw new HttpError(409, { detail: "You have an order in progress. You can close your account once it's collected." })
+    return { requested: true }
+  }],
   ["get", "/booklists/:id/", ({ params }) => booklists.get(params.id) ?? raise(notFound())],
   ["get", "/orders/", () => {
     const results = [...orders.values()].reverse()
     return { count: results.length, next: null, previous: null, results }
   }],
   ["post", "/orders/", ({ body }) => {
-    const child = db.children.find((c) => c.id === body.studentId)
+    const child = children.find((c) => c.id === body.studentId)
     const list = booklists.get(String(body.booklistId))
     if (!child || !list) throw new HttpError(400, { nonFieldErrors: ["This list is no longer open for orders."] })
     const excluded = new Set((body.excludedItemIds as string[]) ?? [])
@@ -226,6 +274,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     const order: Order = {
       id,
       number: `SS-${orderSeq}`,
+      termName: list.termName,
       status: "pending_payment",
       studentName: child.name,
       schoolName: child.schoolName,

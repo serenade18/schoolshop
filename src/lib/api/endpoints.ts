@@ -3,6 +3,7 @@ import { z } from "zod"
 import { api } from "@/lib/api/client"
 import type { PublisherSettings, SchoolSettings, SchoolStaffRole, TeamRole } from "@/lib/api/schemas"
 import {
+  accountSchema,
   adminOverviewSchema,
   authTokensSchema,
   booklistSchema,
@@ -97,6 +98,23 @@ export const getProduct = (id: string) => get(`/products/${id}/`, productDetailS
 
 // Parent
 export const listChildren = () => get("/children/", z.array(childSchema))
+/** Link a child using the code their school gives parents and the child's admission number. */
+export const addChild = (input: { schoolCode: string; admissionNo: string; name: string }) => post("/children/", childSchema, input)
+export const removeChild = async (id: string) => {
+  await api.delete(`/children/${id}/`)
+}
+
+export const getAccount = () => get("/account/", accountSchema)
+export const updateAccount = async (input: { name: string; email: string | null; mpesaPhone: string }) => {
+  const { data } = await api.patch("/account/", input)
+  return accountSchema.parse(data)
+}
+export const updateAccountNotifications = async (input: z.infer<typeof accountSchema>["notifications"]) => {
+  const { data } = await api.put("/account/notifications/", input)
+  return accountSchema.parse(data)
+}
+/** Asks SchoolShop to close the account. Refused while an order is in progress. */
+export const requestAccountDeletion = () => post("/account/deletion/", z.object({ requested: z.boolean() }))
 export const getBooklist = (id: string) => get(`/booklists/${id}/`, booklistSchema)
 export type CreateOrderInput = {
   studentId: string

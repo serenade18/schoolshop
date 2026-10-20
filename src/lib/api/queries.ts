@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { CollectionRow, PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
+import type { Account, CollectionRow, PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
+import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
   me: ["me"] as const,
@@ -21,6 +22,7 @@ export const queryKeys = {
   schoolDeliveries: ["school-deliveries"] as const,
   collection: ["school-collection"] as const,
   schoolSettings: ["school-settings"] as const,
+  account: ["account"] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
@@ -159,6 +161,33 @@ export const useSaveBooklist = () => {
     },
   })
 }
+
+export const useAddChild = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: endpoints.addChild, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.children }) })
+}
+
+export const useRemoveChild = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: endpoints.removeChild, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.children }) })
+}
+
+export const useAccount = () => useQuery({ queryKey: queryKeys.account, queryFn: endpoints.getAccount })
+
+/** Caches the saved account and keeps the signed-in user's name and email in step. */
+export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (account) => {
+      qc.setQueryData(queryKeys.account, account)
+      const { user } = useAuthStore.getState()
+      if (user) useAuthStore.setState({ user: { ...user, name: account.name, email: account.email } })
+    },
+  })
+}
+
+export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
 
 export const useCollection = () => useQuery({ queryKey: queryKeys.collection, queryFn: endpoints.listCollection })
 

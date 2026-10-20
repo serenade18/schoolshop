@@ -199,8 +199,70 @@ export const summarise = (b: Booklist) => {
 
 export const orders: Order[] = [
   {
+    id: "ord-18877",
+    number: "SS-18877",
+    termName: "Term 3, 2026",
+    status: "collected",
+    studentName: "Amani",
+    schoolName: "Greenhill Academy",
+    className: "3 Sun",
+    subtotalCents: k(2960),
+    totalCents: k(2960),
+    collectionCode: "6120",
+    paidAt: "2026-08-21T19:04:00+03:00",
+    mpesaReceipt: "QHT2K8LM1B",
+    expectedAtSchool: "2026-09-01",
+    collectedAt: "2026-09-02T10:20:00+03:00",
+    items: [
+      { id: "oh-1", title: "Mathematics Activities Grade 3", publisherName: "Longhorn", qty: 1, unitPriceCents: k(600), status: "active" },
+      { id: "oh-2", title: "English Activities Grade 3", publisherName: "KLB", qty: 1, unitPriceCents: k(590), status: "active" },
+      { id: "oh-3", title: "Kiswahili Shughuli Gredi 3", publisherName: "Oxford", qty: 1, unitPriceCents: k(620), status: "active" },
+      { id: "oh-4", title: "Environmental Activities Grade 3", publisherName: "Moran", qty: 1, unitPriceCents: k(600), status: "active" },
+      { id: "oh-5", title: "A5 exercise books (×10)", publisherName: "Kasuku", qty: 1, unitPriceCents: k(400), status: "active" },
+      { id: "oh-6", title: "Wax crayons, 12 colours", publisherName: "Kasuku", qty: 1, unitPriceCents: k(150), status: "active" },
+    ],
+    shipments: [
+      { publisherName: "Longhorn", summary: "1 item", status: "received" },
+      { publisherName: "KLB", summary: "1 item", status: "received" },
+      { publisherName: "Oxford", summary: "1 item", status: "received" },
+      { publisherName: "Moran", summary: "1 item", status: "received" },
+      { publisherName: "Kasuku", summary: "2 items", status: "received" },
+    ],
+  },
+  {
+    id: "ord-18902",
+    number: "SS-18902",
+    termName: "Term 3, 2026",
+    status: "partially_refunded",
+    studentName: "Zawadi",
+    schoolName: "Greenhill Academy",
+    className: "6 East",
+    subtotalCents: k(4260),
+    totalCents: k(4260),
+    collectionCode: "2291",
+    paidAt: "2026-08-22T08:41:00+03:00",
+    mpesaReceipt: "QHU7Z3PQ4C",
+    expectedAtSchool: "2026-09-01",
+    collectedAt: "2026-09-03T09:05:00+03:00",
+    items: [
+      { id: "oz-1", title: "Mathematics Activities Grade 6", publisherName: "Longhorn", qty: 1, unitPriceCents: k(700), status: "active" },
+      { id: "oz-2", title: "Science & Technology Grade 6", publisherName: "Moran", qty: 1, unitPriceCents: k(720), status: "active" },
+      { id: "oz-3", title: "English Activities Grade 6", publisherName: "KLB", qty: 1, unitPriceCents: k(680), status: "active" },
+      { id: "oz-4", title: "Social Studies Grade 6", publisherName: "Longhorn", qty: 1, unitPriceCents: k(650), status: "active" },
+      { id: "oz-5", title: "Primary Atlas for Kenya", publisherName: "Oxford", qty: 1, unitPriceCents: k(990), status: "refunded" },
+      { id: "oz-6", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", qty: 1, unitPriceCents: k(520), status: "active" },
+    ],
+    shipments: [
+      { publisherName: "Longhorn", summary: "2 items", status: "received" },
+      { publisherName: "Moran", summary: "1 item", status: "received" },
+      { publisherName: "KLB", summary: "1 item", status: "received" },
+      { publisherName: "Kasuku", summary: "1 item", status: "received" },
+    ],
+  },
+  {
     id: "ord-20418",
     number: "SS-20418",
+    termName: "Term 1, 2027",
     status: "in_fulfilment",
     studentName: "Zawadi",
     schoolName: "Greenhill Academy",
@@ -231,6 +293,23 @@ export const orders: Order[] = [
     ],
   },
 ]
+
+/** The code each school gives parents to link their children. */
+export const schoolJoinCodes: Record<string, string> = {
+  "GRN-2027": "sch-greenhill",
+  "SMP-2027": "sch-stmarys",
+  "KLM-2027": "sch-kilimani",
+  "RVJ-2027": "sch-riverside",
+}
+
+export const parentAccount = {
+  name: "Achieng Otieno",
+  phone: "254712345678",
+  email: null as string | null,
+  mpesaPhone: "254712345678",
+  memberSince: "2026-07-30",
+  notifications: { reminders: true, emailReceipts: false, offers: false },
+}
 
 export const children: Child[] = [
   {
@@ -409,6 +488,7 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
         schoolOrderDetails.push({
           id,
           number,
+          termName: g.list.termName,
           status: row.order.status,
           studentName: row.studentName,
           schoolName: g.list.schoolName,
