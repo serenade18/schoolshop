@@ -99,7 +99,11 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout nav={schoolNav} orgLabel="School admin" />,
-        children: [{ index: true, lazy: page(() => import("@/pages/school/SchoolOverviewPage"), "SchoolOverviewPage") }, ...comingSoon(schoolNav, "/school")],
+        children: [
+          { index: true, lazy: page(() => import("@/pages/school/SchoolOverviewPage"), "SchoolOverviewPage") },
+          { path: "orders", lazy: page(() => import("@/pages/school/SchoolOrdersPage"), "SchoolOrdersPage") },
+          ...comingSoon(schoolNav.filter((n) => n.to !== "/school/orders"), "/school"),
+        ],
       },
     ],
   },

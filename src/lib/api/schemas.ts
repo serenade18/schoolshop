@@ -256,6 +256,46 @@ export const schoolOverviewSchema = z.object({
 })
 export type SchoolOverview = z.infer<typeof schoolOverviewSchema>
 
+/** One row per enrolled student, whether or not their parent has ordered. */
+export const studentOrderRowSchema = z.object({
+  studentId: z.string(),
+  studentName: z.string(),
+  admissionNo: z.string(),
+  gradeName: z.string(),
+  className: z.string(),
+  parentName: z.string().nullable(),
+  /** Masked ("0712 ••• 678"); SchoolShop sends reminders, the school never sees the full number. */
+  parentPhone: z.string().nullable(),
+  order: z
+    .object({
+      id: z.string(),
+      number: z.string(),
+      status: orderStatusSchema,
+      totalCents: cents,
+      itemCount: z.number().int(),
+      paidAt: isoDateTime.nullable(),
+    })
+    .nullable(),
+  remindedAt: isoDateTime.nullable(),
+})
+export type StudentOrderRow = z.infer<typeof studentOrderRowSchema>
+
+export const schoolOrdersSchema = z.object({
+  termName: z.string(),
+  orderDeadline: isoDate,
+  rows: z.array(studentOrderRowSchema),
+})
+export type SchoolOrders = z.infer<typeof schoolOrdersSchema>
+
+export const schoolOrderDetailSchema = orderSchema.extend({
+  admissionNo: z.string(),
+  parentName: z.string().nullable(),
+  parentPhone: z.string().nullable(),
+})
+export type SchoolOrderDetail = z.infer<typeof schoolOrderDetailSchema>
+
+export const remindResultSchema = z.object({ sent: z.number().int(), skipped: z.number().int() })
+
 export const schoolBatchSchema = z.object({
   id: z.string(),
   schoolName: z.string(),

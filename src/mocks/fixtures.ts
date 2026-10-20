@@ -10,7 +10,9 @@ import type {
   ProductDetail,
   School,
   SchoolBatch,
+  SchoolOrderDetail,
   SchoolOverview,
+  StudentOrderRow,
   User,
 } from "@/lib/api/schemas"
 
@@ -207,8 +209,8 @@ export function productDetail(product: Product): ProductDetail {
 export const schoolOverview: SchoolOverview = {
   schoolName: "Greenhill Academy",
   termName: "Term 1, 2027",
-  studentsOrdered: 312,
-  studentsTotal: 540,
+  studentsOrdered: 271,
+  studentsTotal: 480,
   orderDeadline: "2027-01-10",
   deliveriesReceived: 2,
   deliveriesExpected: 5,
@@ -219,12 +221,104 @@ export const schoolOverview: SchoolOverview = {
     { ...summarise(booklists[1]), ordered: 150, students: 270 },
   ],
   deliveries: [
-    { id: "dl-1", publisherName: "Longhorn", packs: 312, status: "received", date: "2027-01-09" },
-    { id: "dl-2", publisherName: "Moran", packs: 120, status: "received", date: "2027-01-09" },
-    { id: "dl-3", publisherName: "KLB", packs: 270, status: "dispatched", date: "2027-01-14" },
-    { id: "dl-4", publisherName: "Oxford", packs: 183, status: "dispatched", date: "2027-01-15" },
-    { id: "dl-5", publisherName: "Kasuku", packs: 312, status: "ready_to_pack", date: null },
+    { id: "dl-1", publisherName: "Longhorn", packs: 271, status: "received", date: "2027-01-09" },
+    { id: "dl-2", publisherName: "Moran", packs: 63, status: "received", date: "2027-01-09" },
+    { id: "dl-3", publisherName: "KLB", packs: 213, status: "dispatched", date: "2027-01-14" },
+    { id: "dl-4", publisherName: "Oxford", packs: 121, status: "dispatched", date: "2027-01-15" },
+    { id: "dl-5", publisherName: "Kasuku", packs: 271, status: "ready_to_pack", date: null },
   ],
+}
+
+/*
+ * Greenhill's parent orders: one row per enrolled student (480), generated
+ * from a fixed seed so the numbers match the overview (271 paid).
+ */
+const seeded = (seed: number) => () => {
+  seed = (seed + 0x6d2b79f5) | 0
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
+const firstNames = ["Zawadi", "Baraka", "Imani", "Kiprono", "Wanjiru", "Otieno", "Akinyi", "Kamau", "Njeri", "Mutua", "Chebet", "Odhiambo", "Wambui", "Kiptoo", "Nyambura", "Omondi", "Atieno", "Mwangi", "Jepkosgei", "Kibet", "Muthoni", "Ochieng", "Wairimu", "Cheruiyot", "Auma", "Njoroge", "Nekesa", "Wekesa", "Makena", "Kirui"]
+const surnames = ["Otieno", "Kamau", "Wanjiku", "Kiprop", "Mwangi", "Achieng", "Njoroge", "Mutiso", "Koech", "Odera", "Maina", "Chepkemoi", "Owino", "Gitau", "Rotich", "Wafula", "Nduta", "Kimani", "Barasa", "Langat"]
+const parentFirst = ["Achieng", "Grace", "Peter", "Mary", "John", "Faith", "David", "Esther", "Joseph", "Lucy", "Samuel", "Ruth", "James", "Mercy", "Daniel"]
+const shipmentByPublisher = Object.fromEntries(schoolOverview.deliveries.map((d) => [d.publisherName, d.status]))
+
+const gradePlan = [
+  { list: booklists[2], classes: [45, 45], paid: 58, pending: 4, failed: 1, year: 2026 },
+  { list: booklists[0], classes: [40, 40, 40], paid: 63, pending: 7, failed: 2, year: 2023 },
+  { list: booklists[1], classes: [90, 90, 90], paid: 150, pending: 5, failed: 1, year: 2020 },
+]
+
+export const schoolOrderRows: StudentOrderRow[] = []
+export const schoolOrderDetails: SchoolOrderDetail[] = []
+{
+  const rand = seeded(2027)
+  const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
+  let adm = 1, orderNo = 19000
+  for (const g of gradePlan) {
+    const students = g.list.classNames.flatMap((className, ci) => Array.from({ length: g.classes[ci] }, () => className))
+    // Spread paid / pending / failed orders across the grade's classes.
+    const statuses: Array<"paid" | "pending_payment" | "payment_failed" | null> = students.map((_, i) => (i < g.paid ? "paid" : i < g.paid + g.pending ? "pending_payment" : i < g.paid + g.pending + g.failed ? "payment_failed" : null))
+    for (let i = statuses.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1))
+      ;[statuses[i], statuses[j]] = [statuses[j], statuses[i]]
+    }
+    students.forEach((className, i) => {
+      const first = g.list.gradeName === "Grade 7" && i === 0 ? "Zawadi" : pick(firstNames)
+      const last = pick(surnames)
+      const hasParent = statuses[i] !== null || rand() > 0.09
+      const status = statuses[i]
+      const row: StudentOrderRow = {
+        studentId: `stu-${adm}`,
+        studentName: `${first} ${last}`,
+        admissionNo: `GH/${g.year}/${String(adm).padStart(4, "0")}`,
+        gradeName: g.list.gradeName,
+        className,
+        parentName: hasParent ? `${pick(parentFirst)} ${last}` : null,
+        parentPhone: hasParent ? `07${Math.floor(rand() * 10)}${Math.floor(rand() * 10)} ••• ${String(Math.floor(rand() * 1000)).padStart(3, "0")}` : null,
+        order: null,
+        remindedAt: !status && hasParent && rand() < 0.15 ? new Date(Date.now() - (1 + rand() * 5) * 3_600_000).toISOString() : null,
+      }
+      adm++
+      if (status) {
+        const items = g.list.items
+          .filter((it) => it.required || rand() < 0.4)
+          .map((it, n) => ({ id: `${row.studentId}-${n}`, title: it.title, publisherName: it.publisherName, qty: it.qtyPerStudent, unitPriceCents: it.unitPriceCents, status: "active" as const }))
+        const total = items.reduce((t, it) => t + it.unitPriceCents * it.qty, 0)
+        const paid = status === "paid"
+        const paidAt = paid ? `2026-12-${String(10 + Math.floor(rand() * 21)).padStart(2, "0")}T${String(7 + Math.floor(rand() * 13)).padStart(2, "0")}:${String(Math.floor(rand() * 60)).padStart(2, "0")}:00+03:00` : null
+        const number = `SS-${orderNo++}`
+        const id = `ord-${number.slice(3)}`
+        row.order = { id, number, status: paid ? "in_fulfilment" : status, totalCents: total, itemCount: items.length, paidAt }
+        const publishers = [...new Set(items.map((it) => it.publisherName))]
+        schoolOrderDetails.push({
+          id,
+          number,
+          status: row.order.status,
+          studentName: row.studentName,
+          schoolName: g.list.schoolName,
+          className,
+          subtotalCents: total,
+          totalCents: total,
+          collectionCode: null,
+          paidAt,
+          mpesaReceipt: paid ? "Q" + Array.from({ length: 9 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(rand() * 32)]).join("") : null,
+          expectedAtSchool: paid ? g.list.deliverBy : null,
+          collectedAt: null,
+          items,
+          shipments: publishers.map((publisherName) => {
+            const n = items.filter((it) => it.publisherName === publisherName).length
+            return { publisherName, summary: `${n} item${n === 1 ? "" : "s"}`, status: paid ? (shipmentByPublisher[publisherName] ?? "collecting") : "collecting" }
+          }),
+          admissionNo: row.admissionNo,
+          parentName: row.parentName,
+          parentPhone: row.parentPhone,
+        })
+      }
+      schoolOrderRows.push(row)
+    })
+  }
 }
 
 /** Longhorn's own catalog, as the demo publisher sees it. */

@@ -17,6 +17,8 @@ export const queryKeys = {
   payment: (id: string) => ["payment", id] as const,
   schoolOverview: ["school-overview"] as const,
   myBooklists: ["school-booklists"] as const,
+  schoolOrders: ["school-orders"] as const,
+  schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
   payouts: ["publisher-payouts"] as const,
@@ -117,6 +119,19 @@ export const usePaymentStatus = (id: string | null) => {
 
 export const useSchoolOverview = () =>
   useQuery({ queryKey: queryKeys.schoolOverview, queryFn: endpoints.getSchoolOverview })
+
+export const useSchoolOrders = () => useQuery({ queryKey: queryKeys.schoolOrders, queryFn: endpoints.getSchoolOrders })
+
+export const useSchoolOrder = (id: string | null) =>
+  useQuery({ queryKey: queryKeys.schoolOrder(id ?? ""), queryFn: () => endpoints.getSchoolOrder(id!), enabled: !!id })
+
+export const useRemindParents = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.remindParents,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.schoolOrders }),
+  })
+}
 
 export const usePublisherBatches = () =>
   useQuery({ queryKey: queryKeys.publisherBatches, queryFn: endpoints.listPublisherBatches })

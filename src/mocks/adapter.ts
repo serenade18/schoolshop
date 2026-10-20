@@ -41,6 +41,9 @@ const admins = () => settings.team.filter((m) => m.role === "admin" && m.status 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
 
+const schoolRows = db.schoolOrderRows.map((r) => structuredClone(r))
+const schoolOrders = new Map(db.schoolOrderDetails.map((o) => [o.id, o]))
+
 const orders = new Map(db.orders.map((o) => [o.id, structuredClone(o)]))
 const payments = new Map<string, Payment & { checks: number }>()
 let orderSeq = 20430
@@ -230,6 +233,21 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
 
   ["get", "/school/overview/", () => db.schoolOverview],
   ["get", "/school/booklists/", () => db.booklists.map(db.summarise)],
+  ["get", "/school/orders/", () => ({ termName: db.schoolOverview.termName, orderDeadline: db.schoolOverview.orderDeadline, rows: schoolRows })],
+  ["get", "/school/orders/:id/", ({ params }) => schoolOrders.get(params.id) ?? raise(notFound())],
+  ["post", "/school/orders/remind/", ({ body }) => {
+    const ids = new Set((body.studentIds as string[] | undefined) ?? [])
+    if (ids.size === 0) throw new HttpError(400, { studentIds: ["Choose at least one student."] })
+    const dayAgo = Date.now() - 86_400_000
+    let sent = 0, skipped = 0
+    for (const row of schoolRows) {
+      if (!ids.has(row.studentId)) continue
+      const paid = row.order && !["pending_payment", "payment_failed"].includes(row.order.status)
+      if (paid || !row.parentPhone || (row.remindedAt && Date.parse(row.remindedAt) > dayAgo)) skipped++
+      else { row.remindedAt = new Date().toISOString(); sent++ }
+    }
+    return { sent, skipped }
+  }],
   ["get", "/publisher/batches/", () => [...batches.values()]],
   ["post", "/publisher/batches/:id/dispatch/", ({ params, body }) => {
     const batch = batches.get(params.id) ?? raise(notFound())

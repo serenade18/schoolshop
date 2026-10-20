@@ -19,7 +19,10 @@ import {
   publisherSettingsSchema,
   productDetailSchema,
   productSchema,
+  remindResultSchema,
   schoolBatchSchema,
+  schoolOrderDetailSchema,
+  schoolOrdersSchema,
   schoolOverviewSchema,
   schoolSchema,
   userSchema,
@@ -108,6 +111,11 @@ export const getPayment = (id: string) => get(`/payments/${id}/`, paymentSchema)
 // School
 export const getSchoolOverview = () => get("/school/overview/", schoolOverviewSchema)
 export const listMyBooklists = () => get("/school/booklists/", z.array(booklistSummarySchema))
+export const getSchoolOrders = () => get("/school/orders/", schoolOrdersSchema)
+export const getSchoolOrder = (id: string) => get(`/school/orders/${id}/`, schoolOrderDetailSchema)
+/** SMS the parents of these students. Students without a phone, or reminded in the last 24 h, are skipped. */
+export const remindParents = (studentIds: string[]) =>
+  post("/school/orders/remind/", remindResultSchema, { studentIds })
 
 // Publisher
 export type CatalogItemInput = Omit<z.infer<typeof catalogItemSchema>, "id" | "schoolListCount">
