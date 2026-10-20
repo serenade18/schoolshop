@@ -15,9 +15,7 @@ const tabs = [
 
 /** How wide the content column gets on desktop. */
 function contentWidth(pathname: string) {
-  if (/\/payments\//.test(pathname)) return "narrow"
-  if (pathname === "/parent/orders" || pathname === "/parent/children" || pathname === "/parent/account") return "medium"
-  return "wide"
+  return /\/payments\//.test(pathname) ? "narrow" : "wide"
 }
 
 /**

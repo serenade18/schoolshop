@@ -64,7 +64,7 @@ export function OrdersPage() {
               <section aria-labelledby="active-h" className="flex flex-col gap-3">
                 <h2 id="active-h" className="font-display text-xl font-semibold">In progress</h2>
                 {active.length ? (
-                  <div className="grid gap-3 lg:grid-cols-2">{active.map((o) => <ActiveOrder key={o.id} order={o} />)}</div>
+                  <div className="grid gap-3 lg:grid-cols-[repeat(auto-fit,minmax(340px,1fr))]">{active.map((o) => <ActiveOrder key={o.id} order={o} />)}</div>
                 ) : (
                   <p className="rounded-2xl border bg-card p-4 text-[15px] text-muted-foreground">Nothing in progress. Every pack has been collected.</p>
                 )}
