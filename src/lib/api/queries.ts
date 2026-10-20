@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { Account, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
+import type { Account, AdminOrder, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
 import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
@@ -25,6 +25,7 @@ export const queryKeys = {
   account: ["account"] as const,
   roster: ["school-roster"] as const,
   adminOrgs: ["admin-orgs"] as const,
+  adminOrders: ["admin-orders"] as const,
   staff: (scope: string) => ["staff", scope] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
@@ -202,6 +203,22 @@ export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
 }
 
 export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
+
+export const useAdminOrders = () => useQuery({ queryKey: queryKeys.adminOrders, queryFn: endpoints.listAdminOrders })
+export const useAdminOrder = (id: string | null) =>
+  useQuery({ queryKey: [...queryKeys.adminOrders, id], queryFn: () => endpoints.getAdminOrder(id!), enabled: !!id })
+
+/** Order actions return the order; the list behind it refreshes. */
+export function useAdminOrderMutation<V>(fn: (vars: V) => Promise<AdminOrder>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (order) => {
+      qc.setQueryData([...queryKeys.adminOrders, order.id], order)
+      return qc.invalidateQueries({ queryKey: queryKeys.adminOrders, exact: true })
+    },
+  })
+}
 
 export const useAdminOrgs = (enabled = true) => useQuery({ queryKey: queryKeys.adminOrgs, queryFn: endpoints.listAdminOrgs, enabled })
 export const useAdminOrg = (id: string | null) =>

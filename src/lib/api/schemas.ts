@@ -576,6 +576,54 @@ export const staffDirectorySchema = z.object({
 })
 export type StaffDirectory = z.infer<typeof staffDirectorySchema>
 
+/** Why an order needs someone at SchoolShop to look at it. */
+export const orderIssueSchema = z.enum(["payment_unconfirmed", "short_delivery", "refund_due"])
+export type OrderIssue = z.infer<typeof orderIssueSchema>
+
+export const adminOrderSummarySchema = z.object({
+  id: z.string(),
+  number: z.string(),
+  status: orderStatusSchema,
+  studentName: z.string(),
+  className: z.string(),
+  schoolId: z.string(),
+  schoolName: z.string(),
+  parentName: z.string().nullable(),
+  /** Admins see the full number so support can find a parent who calls in. */
+  parentPhone: z.string().nullable(),
+  totalCents: cents,
+  refundedCents: cents,
+  createdAt: isoDateTime,
+  mpesaReceipt: z.string().nullable(),
+  issue: orderIssueSchema.nullable(),
+})
+export type AdminOrderSummary = z.infer<typeof adminOrderSummarySchema>
+
+export const adminOrderSchema = orderSchema.extend({
+  schoolId: z.string(),
+  admissionNo: z.string().nullable(),
+  parentName: z.string().nullable(),
+  parentPhone: z.string().nullable(),
+  createdAt: isoDateTime,
+  refundedCents: cents,
+  issue: orderIssueSchema.nullable(),
+  issueDetail: z.string().nullable(),
+  payments: z.array(
+    z.object({
+      id: z.string(),
+      at: isoDateTime,
+      phone: z.string(),
+      amountCents: cents,
+      /** unconfirmed: STK push sent, no callback from M-Pesa yet. */
+      status: z.enum(["succeeded", "failed", "unconfirmed"]),
+      receipt: z.string().nullable(),
+      failureReason: z.string().nullable(),
+    })
+  ),
+  events: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+})
+export type AdminOrder = z.infer<typeof adminOrderSchema>
+
 export const orgStatusSchema = z.enum(["pending", "info_requested", "live", "suspended", "rejected"])
 export type OrgStatus = z.infer<typeof orgStatusSchema>
 

@@ -4,6 +4,8 @@ import { api } from "@/lib/api/client"
 import type { PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
 import {
   accountSchema,
+  adminOrderSchema,
+  adminOrderSummarySchema,
   adminOrgSchema,
   adminOrgSummarySchema,
   adminOverviewSchema,
@@ -258,6 +260,15 @@ export const changePassword = (input: { currentPassword: string; newPassword: st
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)
+export const listAdminOrders = () => get("/admin/orders/", z.array(adminOrderSummarySchema))
+export const getAdminOrder = (id: string) => get(`/admin/orders/${id}/`, adminOrderSchema)
+/** Ask M-Pesa for the result of a payment whose callback never arrived. */
+export const checkOrderPayment = (id: string) => post(`/admin/orders/${id}/check-payment/`, adminOrderSchema, {})
+export const resendOrderCode = (id: string) => post(`/admin/orders/${id}/resend-code/`, adminOrderSchema, {})
+export const addOrderNote = (id: string, note: string) => post(`/admin/orders/${id}/note/`, adminOrderSchema, { note })
+/** Refunds go back to the M-Pesa number that paid. */
+export const refundOrderItems = (id: string, itemIds: string[], reason: string) => post(`/admin/orders/${id}/refund/`, adminOrderSchema, { itemIds, reason })
+export const resolveOrderIssue = (id: string, note: string) => post(`/admin/orders/${id}/resolve/`, adminOrderSchema, { note })
 export const listAdminOrgs = () => get("/admin/organisations/", z.array(adminOrgSummarySchema))
 export const getAdminOrg = (id: string) => get(`/admin/organisations/${id}/`, adminOrgSchema)
 export type OrgDecision = "approve" | "request-info" | "reject" | "suspend" | "reactivate"
