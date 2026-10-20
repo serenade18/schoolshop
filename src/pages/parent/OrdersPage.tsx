@@ -1,15 +1,13 @@
-import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
 import { ChevronRight } from "lucide-react"
 
 import { OrderStatusBadge } from "@/components/common/StatusBadge"
 import { QueryBoundary } from "@/components/common/QueryBoundary"
-import { listOrders } from "@/lib/api/endpoints"
-import { queryKeys } from "@/lib/api/queries"
+import { useOrders } from "@/lib/api/queries"
 import { formatKes } from "@/lib/format"
 
 export function OrdersPage() {
-  const orders = useQuery({ queryKey: queryKeys.orders, queryFn: listOrders })
+  const orders = useOrders()
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-[28px] font-semibold">Orders</h1>

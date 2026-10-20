@@ -10,18 +10,11 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useBooklist, useChildren, useProducts } from "@/lib/api/queries"
 import type { Booklist, BooklistItem, Child } from "@/lib/api/schemas"
-import { formatDay, formatKes } from "@/lib/format"
+import { daysUntil, formatDay, formatKes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { useCartStore } from "@/stores/cart"
 
 const lineTotal = (i: BooklistItem) => i.unitPriceCents * i.qtyPerStudent
-
-/** Whole days from today to a "YYYY-MM-DD" date (negative once it has passed). */
-function daysUntil(isoDate: string) {
-  const [y, m, d] = isoDate.split("-").map(Number)
-  const today = new Date()
-  return Math.round((new Date(y, m - 1, d).getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86_400_000)
-}
 
 export function BooklistPage() {
   const { booklistId = "" } = useParams()

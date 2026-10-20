@@ -77,6 +77,8 @@ export const useBooklist = (id: string | null) =>
     enabled: !!id,
   })
 
+export const useOrders = () => useQuery({ queryKey: queryKeys.orders, queryFn: endpoints.listOrders })
+
 export const useOrder = (id: string) =>
   useQuery({ queryKey: queryKeys.order(id), queryFn: () => endpoints.getOrder(id) })
 
