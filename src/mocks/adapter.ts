@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { Order, Payment } from "@/lib/api/schemas"
+import type { CatalogItem, Order, Payment } from "@/lib/api/schemas"
 import * as db from "@/mocks/fixtures"
 
 /*
@@ -27,6 +27,9 @@ const maskEmail = (email: string) => email.replace(/^(.)[^@]*/, "$1•••")
 const findUser = (identifier: string) =>
   db.demoUsers[identifier] ?? Object.values(db.demoUsers).find((u) => u.email && u.email.toLowerCase() === identifier.toLowerCase())
 const tokensFor = (user: (typeof db.demoUsers)[string]) => ({ access: `mock-access-${user.id}`, refresh: `mock-refresh-${user.id}`, user })
+
+const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
+let catalogSeq = 100
 
 const orders = new Map(db.orders.map((o) => [o.id, structuredClone(o)]))
 const payments = new Map<string, Payment & { checks: number }>()
@@ -211,6 +214,21 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   ["get", "/school/overview/", () => db.schoolOverview],
   ["get", "/school/booklists/", () => db.booklists.map(db.summarise)],
   ["get", "/publisher/batches/", () => db.publisherBatches],
+  ["get", "/publisher/catalog/", () => [...catalog.values()]],
+  ["post", "/publisher/catalog/", ({ body }) => {
+    const isbn = body.isbn ? String(body.isbn) : null
+    if (isbn && [...catalog.values()].some((c) => c.isbn === isbn)) throw new HttpError(400, { isbn: ["A title with this ISBN is already in your catalog."] })
+    const item = { ...(body as Omit<CatalogItem, "id" | "schoolListCount">), isbn, id: `cat-${++catalogSeq}`, schoolListCount: 0 }
+    catalog.set(item.id, item)
+    return item
+  }],
+  ["patch", "/publisher/catalog/:id/", ({ params, body }) => {
+    const item = catalog.get(params.id) ?? raise(notFound())
+    const isbn = "isbn" in body ? (body.isbn ? String(body.isbn) : null) : item.isbn
+    if (isbn && [...catalog.values()].some((c) => c.isbn === isbn && c.id !== item.id)) throw new HttpError(400, { isbn: ["Another title already uses this ISBN."] })
+    Object.assign(item, body, { isbn })
+    return item
+  }],
   ["get", "/admin/overview/", () => db.adminOverview],
 ]
 

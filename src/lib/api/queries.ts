@@ -17,6 +17,7 @@ export const queryKeys = {
   schoolOverview: ["school-overview"] as const,
   myBooklists: ["school-booklists"] as const,
   publisherBatches: ["publisher-batches"] as const,
+  catalog: ["publisher-catalog"] as const,
   adminOverview: ["admin-overview"] as const,
 }
 
@@ -119,3 +120,15 @@ export const usePublisherBatches = () =>
 
 export const useAdminOverview = () =>
   useQuery({ queryKey: queryKeys.adminOverview, queryFn: endpoints.getAdminOverview })
+
+export const useCatalog = () => useQuery({ queryKey: queryKeys.catalog, queryFn: endpoints.listCatalog })
+
+/** Create a title (no id) or update one (with id); refreshes the catalog either way. */
+export const useSaveCatalogItem = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: endpoints.CatalogItemInput }) =>
+      id ? endpoints.updateCatalogItem(id, input) : endpoints.createCatalogItem(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }),
+  })
+}

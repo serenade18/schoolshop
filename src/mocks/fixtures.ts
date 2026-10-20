@@ -1,6 +1,7 @@
 import type {
   AdminOverview,
   Booklist,
+  CatalogItem,
   Child,
   Order,
   Product,
@@ -223,6 +224,17 @@ export const schoolOverview: SchoolOverview = {
     { id: "dl-5", publisherName: "Kasuku", packs: 312, status: "ready_to_pack", date: null },
   ],
 }
+
+/** Longhorn's own catalog, as the demo publisher sees it. */
+export const publisherCatalog: CatalogItem[] = [
+  { id: "cat-g4-math", title: "Mathematics Activities Grade 4", subject: "Mathematics", gradeLabel: "Grade 4", gradeBand: "4-6", isbn: "978-9966-36-412-8", format: "Paperback, A4", priceCents: k(650), stock: 1240, lowStockAt: 200, status: "live", schoolListCount: 38 },
+  { id: "cat-g4-sst", title: "Social Studies Grade 4", subject: "Social Studies", gradeLabel: "Grade 4", gradeBand: "4-6", isbn: "978-9966-36-418-0", format: "Paperback, A4", priceCents: k(600), stock: 140, lowStockAt: 200, status: "live", schoolListCount: 26 },
+  { id: "cat-g7-math", title: "Mathematics Grade 7", subject: "Mathematics", gradeLabel: "Grade 7", gradeBand: "7-9", isbn: "978-9966-36-640-5", format: "Paperback, A4", priceCents: k(720), stock: 2100, lowStockAt: 300, status: "live", schoolListCount: 44 },
+  { id: "cat-g7-sci", title: "Integrated Science Grade 7", subject: "Integrated Science", gradeLabel: "Grade 7", gradeBand: "7-9", isbn: "978-9966-36-655-9", format: "Paperback, A4", priceCents: k(760), stock: 0, lowStockAt: 300, status: "live", schoolListCount: 27 },
+  { id: "cat-g7-pts", title: "Pre-Technical Studies Grade 7", subject: "Pre-Technical Studies", gradeLabel: "Grade 7", gradeBand: "7-9", isbn: "978-9966-36-662-7", format: "Paperback, A4", priceCents: k(690), stock: 880, lowStockAt: 200, status: "live", schoolListCount: 12 },
+  { id: "cat-g1-math", title: "Mathematics Activities Grade 1", subject: "Mathematics", gradeLabel: "Grade 1", gradeBand: "1-3", isbn: "978-9966-36-301-5", format: "Paperback, A4", priceCents: k(520), stock: 95, lowStockAt: 150, status: "live", schoolListCount: 19 },
+  { id: "cat-g8-math", title: "Mathematics Grade 8", subject: "Mathematics", gradeLabel: "Grade 8", gradeBand: "7-9", isbn: null, format: "Paperback, A4", priceCents: k(740), stock: 0, lowStockAt: 300, status: "draft", schoolListCount: 0 },
+]
 
 export const publisherBatches: SchoolBatch[] = [
   { id: "bt-1", schoolName: "Greenhill Academy", town: "Nakuru", packs: 312, valueCents: k(187200), dueAtSchool: "2027-01-20", status: "ready_to_pack", collectingUntil: null,

@@ -6,6 +6,7 @@ import {
   authTokensSchema,
   booklistSchema,
   booklistSummarySchema,
+  catalogItemSchema,
   childSchema,
   codeSentSchema,
   orderSchema,
@@ -105,6 +106,14 @@ export const getSchoolOverview = () => get("/school/overview/", schoolOverviewSc
 export const listMyBooklists = () => get("/school/booklists/", z.array(booklistSummarySchema))
 
 // Publisher
+export type CatalogItemInput = Omit<z.infer<typeof catalogItemSchema>, "id" | "schoolListCount">
+export const listCatalog = () => get("/publisher/catalog/", z.array(catalogItemSchema))
+export const createCatalogItem = (input: CatalogItemInput) =>
+  post("/publisher/catalog/", catalogItemSchema, input)
+export const updateCatalogItem = async (id: string, input: Partial<CatalogItemInput>) => {
+  const { data } = await api.patch(`/publisher/catalog/${id}/`, input)
+  return catalogItemSchema.parse(data)
+}
 export const listPublisherBatches = () => get("/publisher/batches/", z.array(schoolBatchSchema))
 
 // Platform admin

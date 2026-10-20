@@ -109,7 +109,11 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <DashboardLayout nav={publisherNav} tone="dark" tag="PUBLISHER" />,
-        children: [{ index: true, lazy: page(() => import("@/pages/publisher/PublisherOrdersPage"), "PublisherOrdersPage") }, ...comingSoon(publisherNav, "/publisher")],
+        children: [
+          { index: true, lazy: page(() => import("@/pages/publisher/PublisherOrdersPage"), "PublisherOrdersPage") },
+          { path: "catalog", lazy: page(() => import("@/pages/publisher/PublisherCatalogPage"), "PublisherCatalogPage") },
+          ...comingSoon(publisherNav.filter((n) => n.to !== "/publisher/catalog"), "/publisher"),
+        ],
       },
     ],
   },

@@ -212,6 +212,26 @@ export const productDetailSchema = productSchema.extend({
 })
 export type ProductDetail = z.infer<typeof productDetailSchema>
 
+export const gradeBandSchema = z.enum(["pp", "1-3", "4-6", "7-9", "all"])
+
+/** A title in a publisher's own catalog, with stock. Parents see it as a Product. */
+export const catalogItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  subject: z.string(),
+  gradeLabel: z.string(),
+  gradeBand: gradeBandSchema,
+  isbn: z.string().nullable(),
+  format: z.string(),
+  priceCents: cents,
+  stock: z.number().int().nonnegative(),
+  /** At or below this, the title shows as low stock. */
+  lowStockAt: z.number().int().nonnegative(),
+  status: z.enum(["live", "draft"]),
+  schoolListCount: z.number().int().nonnegative(),
+})
+export type CatalogItem = z.infer<typeof catalogItemSchema>
+
 export const schoolOverviewSchema = z.object({
   schoolName: z.string(),
   termName: z.string(),
