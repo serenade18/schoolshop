@@ -4,7 +4,9 @@ import { api } from "@/lib/api/client"
 import type { PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
 import {
   accountSchema,
+  adminMoneySchema,
   adminOrderSchema,
+  collectionSchema,
   adminOrderSummarySchema,
   adminOrgSchema,
   adminOrgSummarySchema,
@@ -260,6 +262,14 @@ export const changePassword = (input: { currentPassword: string; newPassword: st
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)
+export const getAdminMoney = () => get("/admin/money/", adminMoneySchema)
+export const listCollections = () => get("/admin/collections/", z.array(collectionSchema))
+/** Sends the money. Only approved payouts to a verified account go. */
+export const releasePayouts = (ids: string[]) => post("/admin/payouts/release/", adminMoneySchema, { ids })
+export const holdPayout = (id: string, reason: string) => post(`/admin/payouts/${id}/hold/`, adminMoneySchema, { reason })
+export const unholdPayout = (id: string, note: string) => post(`/admin/payouts/${id}/unhold/`, adminMoneySchema, { note })
+/** Confirms a publisher's new payout account after calling them on the number we already had. */
+export const verifyPayoutAccount = (publisherId: string) => post(`/admin/payout-accounts/${publisherId}/verify/`, adminMoneySchema, {})
 export const listAdminOrders = () => get("/admin/orders/", z.array(adminOrderSummarySchema))
 export const getAdminOrder = (id: string) => get(`/admin/orders/${id}/`, adminOrderSchema)
 /** Ask M-Pesa for the result of a payment whose callback never arrived. */

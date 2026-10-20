@@ -1,7 +1,8 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { AdminOrder, AdminOrg, Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, StudentOrderRow } from "@/lib/api/schemas"
+import type { AdminOrder, AdminOrg, AdminPayout, Collection, Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, StudentOrderRow } from "@/lib/api/schemas"
 import { ownerRole, permissionsFor, roleDef, type OrgType } from "@/lib/access"
+import { formatKes } from "@/lib/format"
 import * as db from "@/mocks/fixtures"
 
 /*
@@ -34,6 +35,10 @@ const batches = new Map(db.publisherBatches.map((b) => [b.id, structuredClone(b)
 let deliveryNoteSeq = 1042
 
 const payouts = structuredClone(db.publisherPayouts)
+const otherPayouts = db.adminPayouts.map((p) => structuredClone(p))
+const publisherAccounts = structuredClone(db.publisherAccounts)
+/** Holds and the finance team's actions, per payout (Longhorn's and everyone else's). */
+const payoutNotes = new Map<string, { holdReason: string | null; events: AdminPayout["events"] }>()
 const settings = structuredClone(db.publisherSettings)
 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
@@ -185,6 +190,47 @@ function syncSchoolRow(o: Order) {
   if (row?.order) row.order.status = o.status
 }
 
+/* ── Payouts across every publisher. Longhorn's are the same records its own Payouts page reads. ── */
+
+type PayoutRecord = (typeof payouts.payouts)[number]
+const longhornHold = (p: PayoutRecord) => (p.status === "on_hold" ? `${p.schoolName} reported a short delivery. ${p.deductionNote ?? ""}`.trim() : null)
+function payoutNote(p: PayoutRecord & { holdReason?: string | null }) {
+  let n = payoutNotes.get(p.id)
+  if (!n) payoutNotes.set(p.id, (n = { holdReason: p.holdReason !== undefined ? p.holdReason : longhornHold(p), events: [] }))
+  return n
+}
+const accountFor = (publisherId: string) => (publisherId === "pub-longhorn" ? payouts.account : publisherAccounts[publisherId].account)
+
+function adminPayouts(): AdminPayout[] {
+  const all = [
+    ...payouts.payouts.filter((p) => p.termName === "Term 1, 2027").map((p) => ({ ...p, publisherId: "pub-longhorn", packs: Math.round(p.grossCents / 60_000) })),
+    ...otherPayouts.map(({ holdReason: _h, ...p }) => p),
+  ]
+  const order = { queued: 0, on_hold: 1, held: 2, paid: 3 }
+  return all
+    .map((p) => {
+      const rec = findPayout(p.id)
+      const note = payoutNote(rec)
+      const derived = [
+        ...(p.receivedAt ? [{ id: "received", at: p.receivedAt, actor: p.schoolName, text: `confirmed the delivery (${p.deliveryNoteNo})` }] : []),
+        ...(p.paidAt && !note.events.some((e) => e.text.startsWith("released")) ? [{ id: "paid", at: p.paidAt, actor: "SchoolShop Finance", text: `released the payout · ${p.reference}` }] : []),
+      ]
+      return {
+        ...p, publisherName: p.publisherId === "pub-longhorn" ? "Longhorn Publishers" : publisherAccounts[p.publisherId].name, account: accountFor(p.publisherId),
+        holdReason: p.status === "on_hold" ? note.holdReason : null, events: [...note.events, ...derived].sort((a, b) => b.at.localeCompare(a.at)),
+      }
+    })
+    .sort((a, b) => order[a.status] - order[b.status] || (a.receivedAt ?? "").localeCompare(b.receivedAt ?? ""))
+}
+function findPayout(id: string): PayoutRecord & { publisherId?: string; holdReason?: string | null } {
+  return payouts.payouts.find((p) => p.id === id) ?? otherPayouts.find((p) => p.id === id) ?? raise(notFound())
+}
+const publisherOf = (id: string) => (payouts.payouts.some((p) => p.id === id) ? "pub-longhorn" : findPayout(id).publisherId!)
+function logPayout(id: string, userId: string | null, text: string) {
+  payoutNote(findPayout(id)).events.unshift({ id: `pe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, at: stamp(), actor: usersById().find((u) => u.id === userId)?.name ?? "SchoolShop", text })
+}
+const money = () => ({ termName: "Term 1, 2027", commissionRate: payouts.commissionRate, payouts: adminPayouts() })
+
 function logOrg(org: AdminOrg, userId: string | null, text: string) {
   const actor = usersById().find((u) => u.id === userId)?.name ?? "SchoolShop"
   org.history.unshift({ id: `h-${Date.now()}-${org.history.length}`, at: new Date().toISOString().replace("Z", "+00:00"), actor, text })
@@ -255,6 +301,8 @@ const guards: Array<[method: string, path: RegExp, orgType: OrgType, permission:
   ["get", /^\/admin\/overview\/$/, "platform", "overview.view"],
   ["get", /^\/admin\/organisations\//, "platform", "orgs.view"],
   ["post", /^\/admin\/orders\/[^/]+\/(refund|resolve)\/$/, "platform", "refunds.approve"],
+  ["get", /^\/admin\/(money|collections)\//, "platform", "money.view"],
+  ["post", /^\/admin\/(payouts|payout-accounts)\//, "platform", "payouts.release"],
   ["*", /^\/admin\/orders\//, "platform", "orders.view"],
   ["post", /^\/admin\/organisations\//, "platform", "orgs.verify"],
   ["*", /^\/admin\/staff\//, "platform", "staff.manage"],
@@ -765,6 +813,49 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   }],
   ["get", "/school/orders/", () => ({ termName: db.schoolOverview.termName, orderDeadline: db.schoolOverview.orderDeadline, rows: schoolRows })],
   ["get", "/school/orders/:id/", ({ params }) => schoolOrders.get(params.id) ?? raise(notFound())],
+  ["get", "/admin/money/", () => money()],
+  ["get", "/admin/collections/", (): Collection[] =>
+    allOrders()
+      .flatMap((o) => orderExtra(o).payments.map((p) => ({ id: p.id, at: p.at, orderId: o.id, orderNumber: o.number, schoolName: o.schoolName, phone: display(p.phone)!, amountCents: p.amountCents, receipt: p.receipt, status: p.status })))
+      .sort((a, b) => b.at.localeCompare(a.at))],
+  ["post", "/admin/payouts/release/", ({ body, userId }) => {
+    const ids = (body.ids as string[]) ?? []
+    if (!ids.length) throw new HttpError(400, { ids: ["Choose the payouts to release."] })
+    const blocked = ids.map(findPayout).filter((p) => p.status !== "queued" || accountFor(publisherOf(p.id)).status !== "verified")
+    if (blocked.length) throw new HttpError(409, { detail: `Can't release ${blocked.map((p) => p.deliveryNoteNo).join(", ")}: not ready or the payout account isn't verified.` })
+    for (const id of ids) {
+      const p = findPayout(id)
+      Object.assign(p, { status: "paid", paidAt: stamp(), reference: "QK" + Math.random().toString(36).slice(2, 10).toUpperCase() })
+      logPayout(id, userId, `released ${formatKes(p.netCents)} to ${accountFor(publisherOf(id)).masked} · ${p.reference}`)
+    }
+    return money()
+  }],
+  ["post", "/admin/payouts/:id/hold/", ({ params, body, userId }) => {
+    const p = findPayout(params.id)
+    if (p.status !== "queued" && p.status !== "held") throw new HttpError(409, { detail: "Only payouts that haven't gone out can be held." })
+    const reason = String(body.reason ?? "").trim()
+    if (!reason) throw new HttpError(400, { reason: ["Give the reason. The publisher sees it."] })
+    p.status = "on_hold"
+    payoutNote(p).holdReason = reason
+    logPayout(p.id, userId, `put the payout on hold: "${reason}"`)
+    return money()
+  }],
+  ["post", "/admin/payouts/:id/unhold/", ({ params, body, userId }) => {
+    const p = findPayout(params.id)
+    if (p.status !== "on_hold") throw new HttpError(409, { detail: "This payout isn't on hold." })
+    p.status = p.receivedAt ? "queued" : "held"
+    payoutNote(p).holdReason = null
+    const note = String(body.note ?? "").trim()
+    logPayout(p.id, userId, `took the hold off${note ? `: "${note}"` : ""}`)
+    return money()
+  }],
+  ["post", "/admin/payout-accounts/:publisherId/verify/", ({ params, userId }) => {
+    const account = params.publisherId === "pub-longhorn" ? payouts.account : (publisherAccounts[params.publisherId] ?? raise(notFound())).account
+    if (account.status === "verified") throw new HttpError(409, { detail: "This account is already verified." })
+    account.status = "verified"
+    for (const p of adminPayouts().filter((x) => x.publisherId === params.publisherId && x.status !== "paid")) logPayout(p.id, userId, `confirmed the new payout account ${account.masked}`)
+    return money()
+  }],
   ["get", "/admin/orders/", () => allOrders().map(adminOrderSummary).sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ["get", "/admin/orders/:id/", ({ params }) => adminOrder(findOrder(params.id))],
   ["post", "/admin/orders/:id/check-payment/", ({ params, userId }) => {

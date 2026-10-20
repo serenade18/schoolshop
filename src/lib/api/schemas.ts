@@ -439,6 +439,38 @@ export const payoutSchema = z.object({
 })
 export type Payout = z.infer<typeof payoutSchema>
 
+/** A publisher's payout as SchoolShop finance sees it, across every publisher. */
+export const adminPayoutSchema = payoutSchema.extend({
+  publisherId: z.string(),
+  publisherName: z.string(),
+  account: payoutAccountSchema,
+  packs: z.number().int(),
+  holdReason: z.string().nullable(),
+  events: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+})
+export type AdminPayout = z.infer<typeof adminPayoutSchema>
+
+export const adminMoneySchema = z.object({
+  termName: z.string(),
+  commissionRate: z.number(),
+  payouts: z.array(adminPayoutSchema),
+})
+export type AdminMoney = z.infer<typeof adminMoneySchema>
+
+/** One M-Pesa payment from a parent, for reconciling against the Paybill statement. */
+export const collectionSchema = z.object({
+  id: z.string(),
+  at: isoDateTime,
+  orderId: z.string(),
+  orderNumber: z.string(),
+  schoolName: z.string(),
+  phone: z.string(),
+  amountCents: cents,
+  receipt: z.string().nullable(),
+  status: z.enum(["succeeded", "failed", "unconfirmed"]),
+})
+export type Collection = z.infer<typeof collectionSchema>
+
 export const publisherPayoutsSchema = z.object({
   commissionRate: z.number().min(0).max(1),
   account: payoutAccountSchema,

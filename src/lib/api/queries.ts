@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { Account, AdminOrder, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
+import type { Account, AdminMoney, AdminOrder, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
 import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
@@ -26,6 +26,8 @@ export const queryKeys = {
   roster: ["school-roster"] as const,
   adminOrgs: ["admin-orgs"] as const,
   adminOrders: ["admin-orders"] as const,
+  adminMoney: ["admin-money"] as const,
+  collections: ["admin-collections"] as const,
   staff: (scope: string) => ["staff", scope] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
@@ -203,6 +205,21 @@ export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
 }
 
 export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
+
+export const useAdminMoney = () => useQuery({ queryKey: queryKeys.adminMoney, queryFn: endpoints.getAdminMoney })
+export const useCollections = () => useQuery({ queryKey: queryKeys.collections, queryFn: endpoints.listCollections })
+
+/** Payout actions return the whole money page; the publisher's own payouts refresh too. */
+export function useMoneyMutation<V>(fn: (vars: V) => Promise<AdminMoney>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (money) => {
+      qc.setQueryData(queryKeys.adminMoney, money)
+      return qc.invalidateQueries({ queryKey: queryKeys.payouts })
+    },
+  })
+}
 
 export const useAdminOrders = () => useQuery({ queryKey: queryKeys.adminOrders, queryFn: endpoints.listAdminOrders })
 export const useAdminOrder = (id: string | null) =>

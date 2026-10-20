@@ -632,6 +632,43 @@ export const publisherPayouts: PublisherPayouts = {
   ],
 }
 
+/** Other publishers' payout accounts and payouts, for SchoolShop finance. Longhorn's come from publisherPayouts. */
+export type AdminPayoutSeed = PublisherPayouts["payouts"][number] & { publisherId: string; packs: number; holdReason: string | null }
+export const publisherAccounts: Record<string, { name: string; account: PublisherPayouts["account"] }> = {
+  "pub-moran": { name: "Moran Publishers", account: { method: "bank", accountName: "Moran (E.A.) Publishers Ltd", masked: "Equity Bank · Account *** 4410", status: "verified" } },
+  "pub-klb": { name: "Kenya Literature Bureau", account: { method: "bank", accountName: "Kenya Literature Bureau", masked: "KCB · Account *** 0042", status: "verified" } },
+  "pub-oxford": { name: "Oxford University Press East Africa", account: { method: "bank", accountName: "OUP East Africa Ltd", masked: "Stanbic · Account *** 7781", status: "verified" } },
+  "pub-spotlight": { name: "Spotlight Publishers", account: { method: "mpesa_paybill", accountName: "Spotlight Publishers (EA) Ltd", masked: "Paybill 247 *** 47 · Account SPOTLIGHT", status: "verified" } },
+  "pub-mentor": { name: "Mentor Publishers", account: { method: "mpesa_till", accountName: "Mentor Publishers", masked: "Till 881 *** 20", status: "verified" } },
+  // Changed their account two days ago: nothing goes out until someone confirms it with them.
+  "pub-kasuku": { name: "Kasuku Stationers", account: { method: "mpesa_paybill", accountName: "Kasuku Stationers Ltd", masked: "Paybill 400 *** 93 · Account KASUKU", status: "pending_verification" } },
+  "pub-storymoja": { name: "Storymoja", account: { method: "mpesa_till", accountName: "Storymoja Africa", masked: "Till 552 *** 08", status: "verified" } },
+}
+export const adminPayouts: AdminPayoutSeed[] = [
+  ["pub-moran", "Greenhill Academy", "Nakuru", 120, 82800, "2027-01-09T10:40:00+03:00", "queued"],
+  ["pub-moran", "Hillcrest Prep", "Nyeri", 180, 117000, "2027-01-12T14:00:00+03:00", "on_hold"],
+  ["pub-klb", "Greenhill Academy", "Nakuru", 312, 190320, "2027-01-08T11:15:00+03:00", "queued"],
+  ["pub-klb", "St. Mary's Primary", "Eldoret", 204, 124440, null, "held"],
+  ["pub-oxford", "Greenhill Academy", "Nakuru", 312, 215280, "2027-01-08T11:15:00+03:00", "paid"],
+  ["pub-oxford", "Kilimani Primary", "Nairobi", 96, 66240, "2027-01-10T09:30:00+03:00", "queued"],
+  ["pub-spotlight", "Riverside Junior School", "Kisumu", 178, 138840, "2027-01-11T12:20:00+03:00", "queued"],
+  ["pub-spotlight", "Sunrise Academy", "Machakos", 150, 117000, null, "held"],
+  ["pub-mentor", "St. Mary's Primary", "Eldoret", 64, 85120, "2027-01-10T15:00:00+03:00", "queued"],
+  ["pub-kasuku", "Greenhill Academy", "Nakuru", 312, 140400, "2027-01-08T11:15:00+03:00", "queued"],
+  ["pub-kasuku", "Kitale Hills Academy", "Kitale", 88, 39600, "2027-01-07T10:00:00+03:00", "queued"],
+  ["pub-storymoja", "Lakeview Primary", "Naivasha", 70, 36400, "2027-01-05T13:00:00+03:00", "paid"],
+].map(([publisherId, schoolName, town, packs, gross, receivedAt, status], i) => {
+  const mentor = publisherId === "pub-mentor"
+  const base = payout({
+    id: `apo-${i + 1}`, termName: "Term 1, 2027", schoolName: schoolName as string, town: town as string, deliveryNoteNo: `DN-${2100 + i}`,
+    receivedAt: receivedAt as string | null, grossCents: k(gross as number),
+    // The atlas sold out after these were paid: refunds to parents come off Mentor's payout.
+    deductionsCents: mentor ? k(7980) : 0, deductionNote: mentor ? "6 × Kenya Primary Atlas out of stock, refunded to parents" : null,
+    status: status as AdminPayoutSeed["status"], paidAt: status === "paid" ? "2027-01-10T10:00:00+03:00" : null, reference: status === "paid" ? `QJ${(i * 7919).toString(36).toUpperCase().padStart(6, "0")}X` : null,
+  })
+  return { ...base, publisherId: publisherId as string, packs: packs as number, holdReason: status === "on_hold" ? "Hillcrest Prep received 6 packs short. Hold until the missing packs arrive or parents are refunded." : null }
+})
+
 export const publisherSettings: PublisherSettings = {
   profile: {
     companyName: "Longhorn Publishers Ltd",
