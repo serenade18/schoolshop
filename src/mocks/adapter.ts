@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { CatalogItem, Order, Payment } from "@/lib/api/schemas"
+import type { CatalogItem, Order, Payment, PublisherPayouts } from "@/lib/api/schemas"
 import * as db from "@/mocks/fixtures"
 
 /*
@@ -30,6 +30,8 @@ const tokensFor = (user: (typeof db.demoUsers)[string]) => ({ access: `mock-acce
 
 const batches = new Map(db.publisherBatches.map((b) => [b.id, structuredClone(b)]))
 let deliveryNoteSeq = 1042
+
+const payouts = structuredClone(db.publisherPayouts)
 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
 let catalogSeq = 100
@@ -239,6 +241,19 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     return batch
   }],
   ["get", "/publisher/catalog/", () => [...catalog.values()]],
+  ["get", "/publisher/payouts/", () => payouts],
+  ["put", "/publisher/payout-account/", ({ body }) => {
+    const number = String(body.number ?? "").replace(/\s/g, "")
+    const method = body.method as PublisherPayouts["account"]["method"]
+    if (!/^\d{5,16}$/.test(number)) throw new HttpError(400, { number: ["Enter the number without spaces or dashes."] })
+    const tail = number.slice(-2)
+    const masked =
+      method === "bank" ? `${String(body.reference)} · Account *** ${number.slice(-4)}`
+      : method === "mpesa_till" ? `Till ${number.slice(0, 3)} *** ${tail}`
+      : `Paybill ${number.slice(0, 3)} *** ${tail} · Account ${String(body.reference).toUpperCase()}`
+    payouts.account = { method, accountName: String(body.accountName), masked, status: "pending_verification" }
+    return payouts.account
+  }],
   ["post", "/publisher/catalog/", ({ body }) => {
     const isbn = body.isbn ? String(body.isbn) : null
     if (isbn && [...catalog.values()].some((c) => c.isbn === isbn)) throw new HttpError(400, { isbn: ["A title with this ISBN is already in your catalog."] })

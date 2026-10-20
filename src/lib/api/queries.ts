@@ -18,6 +18,7 @@ export const queryKeys = {
   myBooklists: ["school-booklists"] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
+  payouts: ["publisher-payouts"] as const,
   adminOverview: ["admin-overview"] as const,
 }
 
@@ -138,5 +139,16 @@ export const useDispatchBatch = () => {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: endpoints.DispatchInput }) => endpoints.dispatchBatch(id, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.publisherBatches }),
+  })
+}
+
+export const usePublisherPayouts = () =>
+  useQuery({ queryKey: queryKeys.payouts, queryFn: endpoints.getPublisherPayouts })
+
+export const useUpdatePayoutAccount = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.updatePayoutAccount,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.payouts }),
   })
 }

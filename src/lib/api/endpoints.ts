@@ -13,6 +13,8 @@ import {
   orgApplicationSchema,
   paginated,
   paymentSchema,
+  payoutAccountSchema,
+  publisherPayoutsSchema,
   productDetailSchema,
   productSchema,
   schoolBatchSchema,
@@ -127,6 +129,21 @@ export type DispatchInput = {
 /** Hand a school's packed batch to the carrier. The school is notified to expect it. */
 export const dispatchBatch = (id: string, input: DispatchInput) =>
   post(`/publisher/batches/${id}/dispatch/`, schoolBatchSchema, input)
+
+export const getPublisherPayouts = () => get("/publisher/payouts/", publisherPayoutsSchema)
+export type PayoutAccountInput = {
+  method: "mpesa_paybill" | "mpesa_till" | "bank"
+  accountName: string
+  /** Paybill / till number, or bank account number. */
+  number: string
+  /** Paybill account reference, or bank name and branch. */
+  reference: string
+}
+/** New payout details are checked by SchoolShop before the next payout uses them. */
+export const updatePayoutAccount = async (input: PayoutAccountInput) => {
+  const { data } = await api.put("/publisher/payout-account/", input)
+  return payoutAccountSchema.parse(data)
+}
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)

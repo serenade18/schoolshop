@@ -5,6 +5,7 @@ import type {
   Child,
   Order,
   Product,
+  PublisherPayouts,
   ProductDetail,
   School,
   SchoolBatch,
@@ -257,6 +258,27 @@ export const publisherBatches: SchoolBatch[] = [
     receipt: { receivedAt: "2027-01-04T14:05:00+03:00", receivedBy: "Daniel Kiprop, head teacher", issue: null, payout: "paid" },
     lines: [{ title: "Mathematics Grade 7", qty: 88 }, { title: "Pre-Technical Studies Grade 7", qty: 88 }] },
 ]
+
+/** Commission rate used by the mock only; the real rate is agreed per publisher. */
+const DEMO_COMMISSION = 0.08
+const payout = (p: Omit<PublisherPayouts["payouts"][number], "commissionCents" | "netCents">) => {
+  const commissionCents = Math.round(p.grossCents * DEMO_COMMISSION)
+  return { ...p, commissionCents, netCents: p.grossCents - commissionCents - p.deductionsCents }
+}
+
+export const publisherPayouts: PublisherPayouts = {
+  commissionRate: DEMO_COMMISSION,
+  account: { method: "mpesa_paybill", accountName: "Longhorn Publishers Ltd", masked: "Paybill 522 *** 11 · Account LONGHORN", status: "verified" },
+  payouts: [
+    payout({ id: "po-7", termName: "Term 1, 2027", schoolName: "Hillcrest Prep", town: "Nyeri", deliveryNoteNo: "DN-1042", receivedAt: null, grossCents: k(84000), deductionsCents: 0, deductionNote: null, status: "held", paidAt: null, reference: null }),
+    payout({ id: "po-6", termName: "Term 1, 2027", schoolName: "Sunrise Academy", town: "Machakos", deliveryNoteNo: "DN-1038", receivedAt: "2027-01-06T11:20:00+03:00", grossCents: k(73200), deductionsCents: k(3600), deductionNote: "6 packs short: Social Studies Grade 4, refunded to parents", status: "on_hold", paidAt: null, reference: null }),
+    payout({ id: "po-5", termName: "Term 1, 2027", schoolName: "Kitale Hills School", town: "Kitale", deliveryNoteNo: "DN-1035", receivedAt: "2027-01-05T15:40:00+03:00", grossCents: k(66000), deductionsCents: 0, deductionNote: null, status: "queued", paidAt: null, reference: null }),
+    payout({ id: "po-4", termName: "Term 1, 2027", schoolName: "Lakeview Primary", town: "Naivasha", deliveryNoteNo: "DN-1031", receivedAt: "2027-01-04T14:05:00+03:00", grossCents: k(57200), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2027-01-05T10:00:00+03:00", reference: "QBR7X2K9LM" }),
+    payout({ id: "po-3", termName: "Term 3, 2026", schoolName: "Greenhill Academy", town: "Nakuru", deliveryNoteNo: "DN-0988", receivedAt: "2026-09-08T09:30:00+03:00", grossCents: k(142500), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2026-09-10T10:00:00+03:00", reference: "QIH4M8T2PA" }),
+    payout({ id: "po-2", termName: "Term 3, 2026", schoolName: "St. Mary's Primary", town: "Eldoret", deliveryNoteNo: "DN-0979", receivedAt: "2026-09-06T12:10:00+03:00", grossCents: k(96800), deductionsCents: k(1240), deductionNote: "2 copies damaged: Mathematics Activities Grade 1, refunded to parents", status: "paid", paidAt: "2026-09-08T10:00:00+03:00", reference: "QIF2L7R5WD" }),
+    payout({ id: "po-1", termName: "Term 3, 2026", schoolName: "Kilimani Primary", town: "Nairobi", deliveryNoteNo: "DN-0971", receivedAt: "2026-09-03T08:45:00+03:00", grossCents: k(41250), deductionsCents: 0, deductionNote: null, status: "paid", paidAt: "2026-09-05T10:00:00+03:00", reference: "QIC9P3D6NE" }),
+  ],
+}
 
 export const adminOverview: AdminOverview = {
   termName: "Term 1, 2027",

@@ -294,6 +294,43 @@ export const schoolBatchSchema = z.object({
 })
 export type SchoolBatch = z.infer<typeof schoolBatchSchema>
 
+export const payoutAccountSchema = z.object({
+  method: z.enum(["mpesa_paybill", "mpesa_till", "bank"]),
+  accountName: z.string(),
+  /** Display string with the number partly hidden, e.g. "Paybill 522 *** 11 · Account LONGHORN". */
+  masked: z.string(),
+  status: z.enum(["verified", "pending_verification"]),
+})
+export type PayoutAccount = z.infer<typeof payoutAccountSchema>
+
+export const payoutSchema = z.object({
+  id: z.string(),
+  termName: z.string(),
+  schoolName: z.string(),
+  town: z.string(),
+  deliveryNoteNo: z.string(),
+  /** When the school confirmed the delivery; null while it's still on the way. */
+  receivedAt: isoDateTime.nullable(),
+  grossCents: cents,
+  commissionCents: cents,
+  /** Refunds taken off before payout, e.g. a short delivery. */
+  deductionsCents: cents,
+  deductionNote: z.string().nullable(),
+  netCents: cents,
+  /** held: not yet received · on_hold: the school flagged an issue · queued: approved, not sent · paid */
+  status: z.enum(["held", "on_hold", "queued", "paid"]),
+  paidAt: isoDateTime.nullable(),
+  reference: z.string().nullable(),
+})
+export type Payout = z.infer<typeof payoutSchema>
+
+export const publisherPayoutsSchema = z.object({
+  commissionRate: z.number().min(0).max(1),
+  account: payoutAccountSchema,
+  payouts: z.array(payoutSchema),
+})
+export type PublisherPayouts = z.infer<typeof publisherPayoutsSchema>
+
 export const adminOverviewSchema = z.object({
   termName: z.string(),
   salesCents: cents,
