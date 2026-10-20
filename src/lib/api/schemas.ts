@@ -101,6 +101,35 @@ export const booklistSummarySchema = booklistSchema
   .extend({ itemCount: z.number().int(), requiredTotalCents: cents })
 export type BooklistSummary = z.infer<typeof booklistSummarySchema>
 
+/** A grade at the school, whether or not it has a booklist yet. */
+export const schoolGradeSchema = z.object({
+  gradeName: z.string(),
+  classNames: z.array(z.string()),
+  students: z.number().int(),
+})
+export type SchoolGrade = z.infer<typeof schoolGradeSchema>
+
+export const schoolBooklistsSchema = z.object({
+  termName: z.string(),
+  lists: z.array(booklistSummarySchema.extend({ ordered: z.number().int(), students: z.number().int() })),
+  /** Grades that have no list this term yet. */
+  gradesWithoutList: z.array(schoolGradeSchema),
+})
+export type SchoolBooklists = z.infer<typeof schoolBooklistsSchema>
+
+/** A title a school can put on a list: every live publisher title, plus stationery. */
+export const schoolCatalogItemSchema = z.object({
+  productId: z.string(),
+  title: z.string(),
+  publisherName: z.string(),
+  subject: z.string(),
+  gradeLabel: z.string(),
+  category: z.enum(["textbook", "reader", "reference", "stationery"]),
+  isbn: z.string().nullable(),
+  priceCents: cents,
+})
+export type SchoolCatalogItem = z.infer<typeof schoolCatalogItemSchema>
+
 export const orderStatusSchema = z.enum([
   "pending_payment",
   "payment_failed",
@@ -140,6 +169,8 @@ export const orderSchema = z.object({
   id: z.string(),
   number: z.string(),
   status: orderStatusSchema,
+  /** The school term the order is for, e.g. "Term 1, 2027". */
+  termName: z.string().default("Term 1, 2027"),
   studentName: z.string(),
   schoolName: z.string(),
   className: z.string(),
@@ -441,6 +472,80 @@ export const publisherSettingsSchema = z.object({
 })
 export type PublisherSettings = z.infer<typeof publisherSettingsSchema>
 export type TeamMember = PublisherSettings["team"][number]
+
+/** One paid order's pack, as the school hands it out. */
+export const collectionRowSchema = z.object({
+  orderId: z.string(),
+  orderNumber: z.string(),
+  studentName: z.string(),
+  admissionNo: z.string(),
+  gradeName: z.string(),
+  className: z.string(),
+  itemCount: z.number().int(),
+  /** ready: every publisher's part is at school; waiting: some are still on the way. */
+  status: z.enum(["ready", "waiting", "collected"]),
+  waitingFor: z.array(z.string()),
+  collectedAt: isoDateTime.nullable(),
+  /** Masked parent phone the collection code was sent to. */
+  parentPhone: z.string().nullable(),
+})
+export type CollectionRow = z.infer<typeof collectionRowSchema>
+
+export const schoolStaffRoleSchema = z.enum(["school_admin", "bursar", "teacher"])
+export type SchoolStaffRole = z.infer<typeof schoolStaffRoleSchema>
+
+export const schoolSettingsSchema = z.object({
+  profile: z.object({
+    schoolName: z.string(),
+    /** Ministry of Education registration number, checked when the school joined. */
+    registrationNo: z.string(),
+    verifiedAt: isoDateTime.nullable(),
+    contactName: z.string(),
+    phone: z.string(),
+    email: z.email(),
+    county: z.string(),
+    deliveryAddress: z.string(),
+    deliveryHours: z.string(),
+  }),
+  parents: z.object({
+    /** Days before the order deadline that unpaid parents get an automatic reminder (0 = off). */
+    reminderDays: z.number().int(),
+    smsWhenAtSchool: z.boolean(),
+    collectionPoint: z.enum(["class_teacher", "school_office"]),
+  }),
+  team: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      contact: z.string(),
+      role: schoolStaffRoleSchema,
+      /** Teachers hand out packs for these classes only. */
+      classNames: z.array(z.string()),
+      status: z.enum(["active", "invited"]),
+      isYou: z.boolean(),
+    })
+  ),
+  classNames: z.array(z.string()),
+})
+export type SchoolSettings = z.infer<typeof schoolSettingsSchema>
+export type SchoolStaff = SchoolSettings["team"][number]
+
+export const accountSchema = z.object({
+  name: z.string(),
+  /** Verified at sign-up; changing it needs a new one-time code. */
+  phone: z.string(),
+  email: z.email().nullable(),
+  /** Number pre-filled at M-Pesa checkout. */
+  mpesaPhone: z.string(),
+  memberSince: isoDate,
+  notifications: z.object({
+    /** Order and collection SMSes always go out; these are the optional ones. */
+    reminders: z.boolean(),
+    emailReceipts: z.boolean(),
+    offers: z.boolean(),
+  }),
+})
+export type Account = z.infer<typeof accountSchema>
 
 export const adminOverviewSchema = z.object({
   termName: z.string(),

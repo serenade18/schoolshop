@@ -5,8 +5,7 @@
  */
 
 /* ── Below lg: desktop-only pieces stay hidden, wrappers are transparent ── */
-.parent-sidebar,
-.parent-stats { display: none; }
+.parent-sidebar { display: none; }
 .parent-main,
 .parent-col { display: contents; }
 
@@ -20,11 +19,12 @@
 
 @media (min-width: 1024px) {
   /* ── Shell ── */
+  /* The sidebar is fixed so its background and border run the full height however long the page is. */
   .parent-shell {
-    display: grid;
-    grid-template-columns: 272px minmax(0, 1fr);
+    display: block;
     max-width: none;
     margin: 0;
+    padding-left: 256px;
     border-left-width: 0;
     border-right-width: 0;
   }
@@ -32,19 +32,20 @@
   .parent-mobile-header,
   .parent-mobile-nav { display: none; }
 
+  /* Full width with the same gutters as the school, publisher and admin dashboards. */
   .parent-content {
     width: 100%;
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 44px 48px 72px;
+    padding: 32px clamp(16px, 3vw, 40px) 72px;
   }
-  .parent-content[data-width="medium"] { max-width: 860px; }
-  .parent-content[data-width="narrow"] { max-width: 620px; }
+  /* The payment page is a single form, so it stays narrow. */
+  .parent-content[data-width="narrow"] > .parent-page { max-width: 620px; }
 
   /* ── Sidebar ── */
   .parent-sidebar {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: 256px;
     display: flex;
     flex-direction: column;
     gap: 28px;
@@ -130,25 +131,6 @@
   .parent-page-header > div > span:first-child { font-size: 30px; line-height: 1.1; letter-spacing: -0.02em; }
   .parent-page-header > div > span:last-child:not(:first-child) { margin-top: 4px; font-size: 15px; }
 
-  /* ── Home ── */
-  .parent-home h1 { font-size: 38px; }
-  .parent-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-  .parent-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 20px 22px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    background: var(--surface);
-  }
-  .parent-stat__value { font-size: 36px; font-weight: 600; line-height: 1; }
-  .parent-stat__label { font-size: 14px; color: var(--muted-ink); }
-  .parent-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .parent-cards > article { transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.3s; }
-  .parent-cards > article:hover { transform: translateY(-3px); box-shadow: 0 18px 30px -20px rgba(16, 19, 19, 0.4); }
-  .parent-cards > [data-slot="button"] { grid-column: 1 / -1; min-height: 64px; }
-
   /* ── Two-column pages: content left, sticky summary right ── */
   .parent-split {
     display: grid;
@@ -176,10 +158,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .parent-page,
-  .parent-cards > article,
   .parent-side-link,
   .parent-tip { animation: none; transition: none; }
-  .parent-cards > article:hover,
   .parent-side-link:hover,
   .parent-tip:hover { transform: none; }
 }

@@ -17,6 +17,13 @@ export function formatDayLong(isoDate: string) {
   return dayLong.format(parseDate(isoDate))
 }
 
+/** Whole days from today to a "YYYY-MM-DD" date (negative once it has passed). */
+export function daysUntil(isoDate: string) {
+  const today = new Date()
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.round((parseDate(isoDate).getTime() - start.getTime()) / 86_400_000)
+}
+
 function parseDate(value: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const [y, m, d] = value.split("-").map(Number)

@@ -10,8 +10,11 @@ import type {
   ProductDetail,
   School,
   SchoolBatch,
+  SchoolCatalogItem,
+  SchoolGrade,
   SchoolDelivery,
   SchoolOrderDetail,
+  SchoolSettings,
   SchoolOverview,
   StudentOrderRow,
   User,
@@ -107,7 +110,83 @@ export const booklists: Booklist[] = [
       item("pp2-draw", "Drawing book A4", "Kasuku", "Stationery", 200, false),
     ],
   },
+  {
+    ...greenhillBase,
+    id: "bl-g8",
+    gradeName: "Grade 8",
+    classNames: ["8 Blue", "8 Green", "8 Red"],
+    status: "draft",
+    items: [
+      item("g8-math", "Mathematics Grade 8", "Longhorn", "Mathematics", 760),
+      item("g8-sci", "Integrated Science Grade 8", "Longhorn", "Science", 790),
+      item("g8-eng", "English Grade 8", "KLB", "English", 720),
+    ],
+  },
 ]
+
+const publisherCatalogTitles = [
+  { title: "Mathematics Activities Grade 4", isbn: "978-9966-36-412-8" },
+  { title: "Social Studies Grade 4", isbn: "978-9966-36-430-2" },
+  { title: "Mathematics Grade 7", isbn: "978-9966-36-701-3" },
+  { title: "Integrated Science Grade 7", isbn: "978-9966-36-715-0" },
+]
+
+/** Greenhill's grades this year. PP1 to Grade 6 (other than PP2, 1 and 4) have no list yet. */
+export const schoolGrades: SchoolGrade[] = [
+  { gradeName: "PP1", classNames: ["PP1 Rose", "PP1 Lily"], students: 56 },
+  { gradeName: "PP2", classNames: ["PP2 Rose", "PP2 Lily"], students: 60 },
+  { gradeName: "Grade 1", classNames: ["1 Sun", "1 Moon"], students: 90 },
+  { gradeName: "Grade 2", classNames: ["2 Sun", "2 Moon"], students: 84 },
+  { gradeName: "Grade 3", classNames: ["3 Sun", "3 Moon"], students: 88 },
+  { gradeName: "Grade 4", classNames: ["4 East", "4 West", "4 North"], students: 120 },
+  { gradeName: "Grade 5", classNames: ["5 East", "5 West", "5 North"], students: 114 },
+  { gradeName: "Grade 6", classNames: ["6 East", "6 West", "6 North"], students: 109 },
+  { gradeName: "Grade 7", classNames: ["7 Blue", "7 Green", "7 Red"], students: 270 },
+  { gradeName: "Grade 8", classNames: ["8 Blue", "8 Green", "8 Red"], students: 252 },
+]
+
+/** Everything a school can add to a list: titles already on lists, extra publisher titles, stationery. */
+export const schoolCatalog: SchoolCatalogItem[] = (() => {
+  const category = (subject: string): SchoolCatalogItem["category"] =>
+    /stationery|supplies|exercise/i.test(subject) ? "stationery" : /reader/i.test(subject) ? "reader" : /reference|dictionary/i.test(subject) ? "reference" : "textbook"
+  const gradeOf = (title: string) => {
+    const n = title.match(/(?:Grade|Gredi) (\d)/)?.[1]
+    return n ? `Grade ${n}` : (title.match(/PP\d/)?.[0] ?? "All grades")
+  }
+  const items = new Map<string, SchoolCatalogItem>()
+  for (const b of booklists) {
+    for (const i of b.items) {
+      items.set(i.productId, { productId: i.productId, title: i.title, publisherName: i.publisherName, subject: i.subject, gradeLabel: gradeOf(i.title), category: category(i.subject), isbn: null, priceCents: i.unitPriceCents })
+    }
+  }
+  const extra: [string, string, string, string, number, string | null][] = [
+    ["g4-cre", "CRE Activities Grade 4", "KLB", "CRE", 580, "978-9966-44-120-3"],
+    ["g4-art", "Creative Arts Grade 4", "Moran", "Creative Arts", 610, "978-9966-63-218-1"],
+    ["g4-agri", "Agriculture & Nutrition Grade 4", "Longhorn", "Agriculture", 590, "978-9966-36-455-5"],
+    ["g5-math", "Mathematics Activities Grade 5", "Longhorn", "Mathematics", 680, "978-9966-36-470-8"],
+    ["g5-eng", "English Activities Grade 5", "KLB", "English", 650, "978-9966-44-135-7"],
+    ["g6-math", "Mathematics Activities Grade 6", "Longhorn", "Mathematics", 700, "978-9966-36-488-3"],
+    ["g6-sci", "Science & Technology Grade 6", "Moran", "Science", 720, "978-9966-63-240-2"],
+    ["g2-math", "Mathematics Activities Grade 2", "Longhorn", "Mathematics", 560, "978-9966-36-401-2"],
+    ["g3-eng", "English Activities Grade 3", "KLB", "English", 590, "978-9966-44-108-1"],
+    ["pp1-lang", "Language Activities PP1", "Moran", "Language", 460, "978-9966-63-201-3"],
+    ["rd-kidogo", "Kidogo na Kubwa (reader)", "Storymoja", "Readers", 350, "978-9966-75-012-9"],
+    ["rd-safari", "The Long Safari (reader)", "Storymoja", "Readers", 380, "978-9966-75-031-0"],
+    ["ref-atlas", "Primary Atlas for Kenya", "Oxford", "Reference", 990, "978-0-19-573412-6"],
+    ["st-pencils", "HB pencils, pack of 12", "Kasuku", "Stationery", 240, null],
+    ["st-geometry", "Geometry set", "Kasuku", "Stationery", 300, null],
+    ["st-a5", "A5 exercise books (×10)", "Kasuku", "Stationery", 400, null],
+  ]
+  for (const [id, title, publisherName, subject, price, isbn] of extra) {
+    if ([...items.values()].some((i) => i.title === title && i.publisherName === publisherName)) continue
+    items.set(`prd-${id}`, { productId: `prd-${id}`, title, publisherName, subject, gradeLabel: gradeOf(title), category: category(subject), isbn, priceCents: k(price) })
+  }
+  for (const c of publisherCatalogTitles) {
+    const found = [...items.values()].find((i) => i.title === c.title)
+    if (found) found.isbn = c.isbn
+  }
+  return [...items.values()]
+})()
 
 export const summarise = (b: Booklist) => {
   const { items, ...rest } = b
@@ -120,8 +199,70 @@ export const summarise = (b: Booklist) => {
 
 export const orders: Order[] = [
   {
+    id: "ord-18877",
+    number: "SS-18877",
+    termName: "Term 3, 2026",
+    status: "collected",
+    studentName: "Amani",
+    schoolName: "Greenhill Academy",
+    className: "3 Sun",
+    subtotalCents: k(2960),
+    totalCents: k(2960),
+    collectionCode: "6120",
+    paidAt: "2026-08-21T19:04:00+03:00",
+    mpesaReceipt: "QHT2K8LM1B",
+    expectedAtSchool: "2026-09-01",
+    collectedAt: "2026-09-02T10:20:00+03:00",
+    items: [
+      { id: "oh-1", title: "Mathematics Activities Grade 3", publisherName: "Longhorn", qty: 1, unitPriceCents: k(600), status: "active" },
+      { id: "oh-2", title: "English Activities Grade 3", publisherName: "KLB", qty: 1, unitPriceCents: k(590), status: "active" },
+      { id: "oh-3", title: "Kiswahili Shughuli Gredi 3", publisherName: "Oxford", qty: 1, unitPriceCents: k(620), status: "active" },
+      { id: "oh-4", title: "Environmental Activities Grade 3", publisherName: "Moran", qty: 1, unitPriceCents: k(600), status: "active" },
+      { id: "oh-5", title: "A5 exercise books (×10)", publisherName: "Kasuku", qty: 1, unitPriceCents: k(400), status: "active" },
+      { id: "oh-6", title: "Wax crayons, 12 colours", publisherName: "Kasuku", qty: 1, unitPriceCents: k(150), status: "active" },
+    ],
+    shipments: [
+      { publisherName: "Longhorn", summary: "1 item", status: "received" },
+      { publisherName: "KLB", summary: "1 item", status: "received" },
+      { publisherName: "Oxford", summary: "1 item", status: "received" },
+      { publisherName: "Moran", summary: "1 item", status: "received" },
+      { publisherName: "Kasuku", summary: "2 items", status: "received" },
+    ],
+  },
+  {
+    id: "ord-18902",
+    number: "SS-18902",
+    termName: "Term 3, 2026",
+    status: "partially_refunded",
+    studentName: "Zawadi",
+    schoolName: "Greenhill Academy",
+    className: "6 East",
+    subtotalCents: k(4260),
+    totalCents: k(4260),
+    collectionCode: "2291",
+    paidAt: "2026-08-22T08:41:00+03:00",
+    mpesaReceipt: "QHU7Z3PQ4C",
+    expectedAtSchool: "2026-09-01",
+    collectedAt: "2026-09-03T09:05:00+03:00",
+    items: [
+      { id: "oz-1", title: "Mathematics Activities Grade 6", publisherName: "Longhorn", qty: 1, unitPriceCents: k(700), status: "active" },
+      { id: "oz-2", title: "Science & Technology Grade 6", publisherName: "Moran", qty: 1, unitPriceCents: k(720), status: "active" },
+      { id: "oz-3", title: "English Activities Grade 6", publisherName: "KLB", qty: 1, unitPriceCents: k(680), status: "active" },
+      { id: "oz-4", title: "Social Studies Grade 6", publisherName: "Longhorn", qty: 1, unitPriceCents: k(650), status: "active" },
+      { id: "oz-5", title: "Primary Atlas for Kenya", publisherName: "Oxford", qty: 1, unitPriceCents: k(990), status: "refunded" },
+      { id: "oz-6", title: "A4 exercise books, 96 pg (×10)", publisherName: "Kasuku", qty: 1, unitPriceCents: k(520), status: "active" },
+    ],
+    shipments: [
+      { publisherName: "Longhorn", summary: "2 items", status: "received" },
+      { publisherName: "Moran", summary: "1 item", status: "received" },
+      { publisherName: "KLB", summary: "1 item", status: "received" },
+      { publisherName: "Kasuku", summary: "1 item", status: "received" },
+    ],
+  },
+  {
     id: "ord-20418",
     number: "SS-20418",
+    termName: "Term 1, 2027",
     status: "in_fulfilment",
     studentName: "Zawadi",
     schoolName: "Greenhill Academy",
@@ -152,6 +293,23 @@ export const orders: Order[] = [
     ],
   },
 ]
+
+/** The code each school gives parents to link their children. */
+export const schoolJoinCodes: Record<string, string> = {
+  "GRN-2027": "sch-greenhill",
+  "SMP-2027": "sch-stmarys",
+  "KLM-2027": "sch-kilimani",
+  "RVJ-2027": "sch-riverside",
+}
+
+export const parentAccount = {
+  name: "Achieng Otieno",
+  phone: "254712345678",
+  email: null as string | null,
+  mpesaPhone: "254712345678",
+  memberSince: "2026-07-30",
+  notifications: { reminders: true, emailReceipts: false, offers: false },
+}
 
 export const children: Child[] = [
   {
@@ -258,14 +416,17 @@ const seeded = (seed: number) => () => {
 const firstNames = ["Zawadi", "Baraka", "Imani", "Kiprono", "Wanjiru", "Otieno", "Akinyi", "Kamau", "Njeri", "Mutua", "Chebet", "Odhiambo", "Wambui", "Kiptoo", "Nyambura", "Omondi", "Atieno", "Mwangi", "Jepkosgei", "Kibet", "Muthoni", "Ochieng", "Wairimu", "Cheruiyot", "Auma", "Njoroge", "Nekesa", "Wekesa", "Makena", "Kirui"]
 const surnames = ["Otieno", "Kamau", "Wanjiku", "Kiprop", "Mwangi", "Achieng", "Njoroge", "Mutiso", "Koech", "Odera", "Maina", "Chepkemoi", "Owino", "Gitau", "Rotich", "Wafula", "Nduta", "Kimani", "Barasa", "Langat"]
 const parentFirst = ["Achieng", "Grace", "Peter", "Mary", "John", "Faith", "David", "Esther", "Joseph", "Lucy", "Samuel", "Ruth", "James", "Mercy", "Daniel"]
-/** Where each publisher's Greenhill delivery stands. Moran's arrived with two damaged packs. */
+/**
+ * Where each publisher's Greenhill delivery stands. Moran's arrived with two damaged packs. With
+ * Longhorn, Moran, KLB and Kasuku in, PP2 and Grade 7 packs are complete; Grades 1 and 4 wait for Oxford.
+ */
 type DeliveryPlan = Pick<SchoolDelivery, "status" | "expectedAt"> & { noteNo?: string; driver?: [name: string, phone: string, reg: string]; carrier?: string }
 const deliveryPlan: Record<string, DeliveryPlan> = {
   Longhorn: { status: "received", expectedAt: "2027-01-09", noteNo: "LH-DN-1038", driver: ["Joseph Mwangi", "254711222333", "KCX 412M"], carrier: "Own vehicle" },
   Moran: { status: "received", expectedAt: "2027-01-09", noteNo: "MOR-55120", driver: ["Kevin Ouma", "254722431908", "KDA 201K"], carrier: "G4S Courier" },
-  KLB: { status: "dispatched", expectedAt: "2027-01-14", noteNo: "KLB-DN-08812", driver: ["Daniel Kiprotich", "254733118220", "KCZ 908T"], carrier: "Own vehicle" },
+  KLB: { status: "received", expectedAt: "2027-01-14", noteNo: "KLB-DN-08812", driver: ["Daniel Kiprotich", "254733118220", "KCZ 908T"], carrier: "Own vehicle" },
   Oxford: { status: "dispatched", expectedAt: "2027-01-15", noteNo: "OUP-KE-30471", driver: ["Brian Mutai", "254701556781", "KDB 377Q"], carrier: "Sendy" },
-  Kasuku: { status: "ready_to_pack", expectedAt: null },
+  Kasuku: { status: "received", expectedAt: "2027-01-12", noteNo: "KSK-4471", driver: ["Peter Njoroge", "254720664512", "KCT 553L"], carrier: "Own vehicle" },
   Storymoja: { status: "ready_to_pack", expectedAt: null },
 }
 const shipmentByPublisher = Object.fromEntries(Object.entries(deliveryPlan).map(([name, d]) => [name, d.status]))
@@ -281,6 +442,8 @@ export const schoolOrderRows: StudentOrderRow[] = []
 export const schoolOrderDetails: SchoolOrderDetail[] = []
 {
   const rand = seeded(2027)
+  // Separate stream so collection codes don't shift the generated names and orders.
+  const codeRand = seeded(4242)
   const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
   let adm = 1, orderNo = 19000
   for (const g of gradePlan) {
@@ -317,22 +480,26 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
         const paidAt = paid ? `2026-12-${String(10 + Math.floor(rand() * 21)).padStart(2, "0")}T${String(7 + Math.floor(rand() * 13)).padStart(2, "0")}:${String(Math.floor(rand() * 60)).padStart(2, "0")}:00+03:00` : null
         const number = `SS-${orderNo++}`
         const id = `ord-${number.slice(3)}`
-        row.order = { id, number, status: paid ? "in_fulfilment" : status, totalCents: total, itemCount: items.length, paidAt }
         const publishers = [...new Set(items.map((it) => it.publisherName))]
+        const complete = paid && publishers.every((p) => shipmentByPublisher[p] === "received")
+        // Handing out began on 15 Jan: about a third of each complete class has collected so far.
+        const collected = complete && codeRand() < 0.35
+        row.order = { id, number, status: collected ? "collected" : complete ? "at_school" : paid ? "in_fulfilment" : status, totalCents: total, itemCount: items.length, paidAt }
         schoolOrderDetails.push({
           id,
           number,
+          termName: g.list.termName,
           status: row.order.status,
           studentName: row.studentName,
           schoolName: g.list.schoolName,
           className,
           subtotalCents: total,
           totalCents: total,
-          collectionCode: null,
+          collectionCode: paid ? String(1000 + Math.floor(codeRand() * 9000)) : null,
           paidAt,
           mpesaReceipt: paid ? "Q" + Array.from({ length: 9 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(rand() * 32)]).join("") : null,
           expectedAtSchool: paid ? g.list.deliverBy : null,
-          collectedAt: null,
+          collectedAt: collected ? `2027-01-15T${String(8 + Math.floor(codeRand() * 7)).padStart(2, "0")}:${String(Math.floor(codeRand() * 60)).padStart(2, "0")}:00+03:00` : null,
           items,
           shipments: publishers.map((publisherName) => {
             const n = items.filter((it) => it.publisherName === publisherName).length
@@ -352,7 +519,7 @@ export const schoolOrderDetails: SchoolOrderDetail[] = []
 export const schoolDeliveries: SchoolDelivery[] = Object.entries(deliveryPlan).map(([publisherName, plan], i) => {
   const perClass = new Map<string, number>()
   for (const o of schoolOrderDetails) {
-    if (o.status !== "in_fulfilment" || !o.items.some((it) => it.publisherName === publisherName)) continue
+    if (!["in_fulfilment", "at_school", "collected"].includes(o.status) || !o.items.some((it) => it.publisherName === publisherName)) continue
     perClass.set(o.className, (perClass.get(o.className) ?? 0) + 1)
   }
   const packs = [...perClass.values()].reduce((a, b) => a + b, 0)
@@ -392,6 +559,30 @@ export const schoolDeliveries: SchoolDelivery[] = Object.entries(deliveryPlan).m
 schoolOverview.deliveries = schoolDeliveries.map((d) => ({ id: d.id, publisherName: d.publisherName, packs: d.packs, status: d.status, date: d.expectedAt }))
 schoolOverview.deliveriesExpected = schoolDeliveries.length
 schoolOverview.deliveriesReceived = schoolDeliveries.filter((d) => d.status === "received").length
+schoolOverview.packsCollected = schoolOrderDetails.filter((o) => o.status === "collected").length
+
+export const schoolSettings: SchoolSettings = {
+  profile: {
+    schoolName: "Greenhill Academy",
+    registrationNo: "MOE/NKR/P/1187",
+    verifiedAt: "2026-08-02T10:15:00+03:00",
+    contactName: "Grace Wambui",
+    phone: "254722000111",
+    email: "office@greenhill.ac.ke",
+    county: "Nakuru",
+    deliveryAddress: "Greenhill Academy, Kabarak Road, Nakuru. Deliveries via the back gate.",
+    deliveryHours: "Mon–Fri, 8am–4pm",
+  },
+  parents: { reminderDays: 3, smsWhenAtSchool: true, collectionPoint: "class_teacher" },
+  team: [
+    { id: "st-1", name: "Grace Wambui", contact: "254722000111", role: "school_admin", classNames: [], status: "active", isYou: true },
+    { id: "st-2", name: "Samuel Kiprop", contact: "254711908765", role: "bursar", classNames: [], status: "active", isYou: false },
+    { id: "st-3", name: "Mercy Achieng", contact: "254733200411", role: "teacher", classNames: ["4 East"], status: "active", isYou: false },
+    { id: "st-4", name: "John Mwangi", contact: "j.mwangi@greenhill.ac.ke", role: "teacher", classNames: ["7 Blue", "7 Green"], status: "active", isYou: false },
+    { id: "st-5", name: "Lucy Chebet", contact: "254799331200", role: "teacher", classNames: ["PP2 Rose", "PP2 Lily"], status: "invited", isYou: false },
+  ],
+  classNames: schoolGrades.flatMap((g) => g.classNames),
+}
 
 /** Longhorn's own catalog, as the demo publisher sees it. */
 export const publisherCatalog: CatalogItem[] = [

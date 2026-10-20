@@ -1,12 +1,12 @@
 import { z } from "zod"
 
 import { api } from "@/lib/api/client"
-import type { PublisherSettings, TeamRole } from "@/lib/api/schemas"
+import type { PublisherSettings, SchoolSettings, SchoolStaffRole, TeamRole } from "@/lib/api/schemas"
 import {
+  accountSchema,
   adminOverviewSchema,
   authTokensSchema,
   booklistSchema,
-  booklistSummarySchema,
   catalogItemSchema,
   childSchema,
   codeSentSchema,
@@ -20,12 +20,16 @@ import {
   productDetailSchema,
   productSchema,
   remindResultSchema,
+  collectionRowSchema,
   schoolBatchSchema,
+  schoolBooklistsSchema,
+  schoolCatalogItemSchema,
   schoolDeliverySchema,
   schoolOrderDetailSchema,
   schoolOrdersSchema,
   schoolOverviewSchema,
   schoolSchema,
+  schoolSettingsSchema,
   userSchema,
 } from "@/lib/api/schemas"
 
@@ -94,6 +98,23 @@ export const getProduct = (id: string) => get(`/products/${id}/`, productDetailS
 
 // Parent
 export const listChildren = () => get("/children/", z.array(childSchema))
+/** Link a child using the code their school gives parents and the child's admission number. */
+export const addChild = (input: { schoolCode: string; admissionNo: string; name: string }) => post("/children/", childSchema, input)
+export const removeChild = async (id: string) => {
+  await api.delete(`/children/${id}/`)
+}
+
+export const getAccount = () => get("/account/", accountSchema)
+export const updateAccount = async (input: { name: string; email: string | null; mpesaPhone: string }) => {
+  const { data } = await api.patch("/account/", input)
+  return accountSchema.parse(data)
+}
+export const updateAccountNotifications = async (input: z.infer<typeof accountSchema>["notifications"]) => {
+  const { data } = await api.put("/account/notifications/", input)
+  return accountSchema.parse(data)
+}
+/** Asks SchoolShop to close the account. Refused while an order is in progress. */
+export const requestAccountDeletion = () => post("/account/deletion/", z.object({ requested: z.boolean() }))
 export const getBooklist = (id: string) => get(`/booklists/${id}/`, booklistSchema)
 export type CreateOrderInput = {
   studentId: string
@@ -111,7 +132,49 @@ export const getPayment = (id: string) => get(`/payments/${id}/`, paymentSchema)
 
 // School
 export const getSchoolOverview = () => get("/school/overview/", schoolOverviewSchema)
-export const listMyBooklists = () => get("/school/booklists/", z.array(booklistSummarySchema))
+export const listMyBooklists = () => get("/school/booklists/", schoolBooklistsSchema)
+export const createBooklist = (gradeName: string) => post("/school/booklists/", booklistSchema, { gradeName })
+export type BooklistInput = {
+  orderDeadline: string
+  deliverBy: string
+  items: { productId: string; required: boolean; qtyPerStudent: number; note: string | null }[]
+}
+export const saveBooklist = async (id: string, input: BooklistInput) => {
+  const { data } = await api.put(`/school/booklists/${id}/`, input)
+  return booklistSchema.parse(data)
+}
+/** Publishing SMSes the parents of every student in the grade's classes. */
+export const publishBooklist = (id: string) => post(`/school/booklists/${id}/publish/`, booklistSchema)
+export const searchSchoolCatalog = (search: string, category: string) =>
+  get("/school/catalog/", z.array(schoolCatalogItemSchema), { search, category })
+export const listCollection = () => get("/school/collection/", z.array(collectionRowSchema))
+/** Hand over a pack: the code the student or parent reads out must match an order in this class. */
+export const handOverPack = (input: { className: string; code: string }) =>
+  post("/school/collection/handover/", collectionRowSchema, input)
+export const resendCollectionCode = (orderId: string) =>
+  post(`/school/collection/${orderId}/resend/`, z.object({ sentTo: z.string() }))
+
+export const getSchoolSettings = () => get("/school/settings/", schoolSettingsSchema)
+export type SchoolProfileInput = Pick<SchoolSettings["profile"], "contactName" | "phone" | "email" | "county" | "deliveryAddress" | "deliveryHours">
+export const updateSchoolProfile = async (input: SchoolProfileInput) => {
+  const { data } = await api.patch("/school/settings/profile/", input)
+  return schoolSettingsSchema.parse(data)
+}
+export const updateParentSettings = async (input: SchoolSettings["parents"]) => {
+  const { data } = await api.put("/school/settings/parents/", input)
+  return schoolSettingsSchema.parse(data)
+}
+export const inviteSchoolStaff = (input: { name: string; contact: string; role: SchoolStaffRole; classNames: string[] }) =>
+  post("/school/team/", schoolSettingsSchema, input)
+export const updateSchoolStaff = async (id: string, input: { role?: SchoolStaffRole; classNames?: string[] }) => {
+  const { data } = await api.patch(`/school/team/${id}/`, input)
+  return schoolSettingsSchema.parse(data)
+}
+export const removeSchoolStaff = async (id: string) => {
+  const { data } = await api.delete(`/school/team/${id}/`)
+  return schoolSettingsSchema.parse(data)
+}
+
 export const listSchoolDeliveries = () => get("/school/deliveries/", z.array(schoolDeliverySchema))
 export const getSchoolDelivery = (id: string) => get(`/school/deliveries/${id}/`, schoolDeliverySchema)
 export type ReceiveInput = {

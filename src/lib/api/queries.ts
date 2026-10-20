@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { PublisherSettings } from "@/lib/api/schemas"
+import type { Account, CollectionRow, PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
+import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
   me: ["me"] as const,
@@ -19,6 +20,9 @@ export const queryKeys = {
   myBooklists: ["school-booklists"] as const,
   schoolOrders: ["school-orders"] as const,
   schoolDeliveries: ["school-deliveries"] as const,
+  collection: ["school-collection"] as const,
+  schoolSettings: ["school-settings"] as const,
+  account: ["account"] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
   catalog: ["publisher-catalog"] as const,
@@ -77,6 +81,8 @@ export const useBooklist = (id: string | null) =>
     enabled: !!id,
   })
 
+export const useOrders = () => useQuery({ queryKey: queryKeys.orders, queryFn: endpoints.listOrders })
+
 export const useOrder = (id: string) =>
   useQuery({ queryKey: queryKeys.order(id), queryFn: () => endpoints.getOrder(id) })
 
@@ -120,6 +126,92 @@ export const usePaymentStatus = (id: string | null) => {
 
 export const useSchoolOverview = () =>
   useQuery({ queryKey: queryKeys.schoolOverview, queryFn: endpoints.getSchoolOverview })
+
+export const useMyBooklists = () => useQuery({ queryKey: queryKeys.myBooklists, queryFn: endpoints.listMyBooklists })
+
+export const useSchoolCatalog = (search: string, category: string) =>
+  useQuery({
+    queryKey: ["school-catalog", search, category],
+    queryFn: () => endpoints.searchSchoolCatalog(search, category),
+    placeholderData: (prev) => prev,
+  })
+
+export const useCreateBooklist = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.createBooklist,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.myBooklists }),
+  })
+}
+
+/** Save the list, and publish it too when asked. Keeps the list, index and overview in step. */
+export const useSaveBooklist = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, input, publish }: { id: string; input: endpoints.BooklistInput; publish?: boolean }) => {
+      const saved = await endpoints.saveBooklist(id, input)
+      return publish ? endpoints.publishBooklist(id) : saved
+    },
+    onSuccess: (list) => {
+      qc.setQueryData(queryKeys.booklist(list.id), list)
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.myBooklists }),
+        qc.invalidateQueries({ queryKey: queryKeys.schoolOverview }),
+      ])
+    },
+  })
+}
+
+export const useAddChild = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: endpoints.addChild, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.children }) })
+}
+
+export const useRemoveChild = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: endpoints.removeChild, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.children }) })
+}
+
+export const useAccount = () => useQuery({ queryKey: queryKeys.account, queryFn: endpoints.getAccount })
+
+/** Caches the saved account and keeps the signed-in user's name and email in step. */
+export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (account) => {
+      qc.setQueryData(queryKeys.account, account)
+      const { user } = useAuthStore.getState()
+      if (user) useAuthStore.setState({ user: { ...user, name: account.name, email: account.email } })
+    },
+  })
+}
+
+export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
+
+export const useCollection = () => useQuery({ queryKey: queryKeys.collection, queryFn: endpoints.listCollection })
+
+/** Marks the pack collected in the cached list straight away, then refreshes the overview. */
+export const useHandOverPack = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: endpoints.handOverPack,
+    onSuccess: (row) => {
+      qc.setQueryData(queryKeys.collection, (rows: CollectionRow[] | undefined) => rows?.map((r) => (r.orderId === row.orderId ? row : r)))
+      return Promise.all([qc.invalidateQueries({ queryKey: queryKeys.schoolOverview }), qc.invalidateQueries({ queryKey: queryKeys.schoolOrders })])
+    },
+  })
+}
+
+export const useResendCode = () => useMutation({ mutationFn: endpoints.resendCollectionCode })
+
+export const useSchoolSettings = () => useQuery({ queryKey: queryKeys.schoolSettings, queryFn: endpoints.getSchoolSettings })
+
+/** Wraps a school settings call that returns the whole settings object, and caches the result. */
+export function useSchoolSettingsMutation<V>(fn: (vars: V) => Promise<SchoolSettings>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: (data) => qc.setQueryData(queryKeys.schoolSettings, data) })
+}
 
 export const useSchoolDeliveries = () =>
   useQuery({ queryKey: queryKeys.schoolDeliveries, queryFn: endpoints.listSchoolDeliveries })
