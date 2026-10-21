@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import * as endpoints from "@/lib/api/endpoints"
-import type { Account, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
+import type { Account, AdminMoney, AdminOrder, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
 import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
@@ -23,6 +23,11 @@ export const queryKeys = {
   collection: ["school-collection"] as const,
   schoolSettings: ["school-settings"] as const,
   account: ["account"] as const,
+  roster: ["school-roster"] as const,
+  adminOrgs: ["admin-orgs"] as const,
+  adminOrders: ["admin-orders"] as const,
+  adminMoney: ["admin-money"] as const,
+  collections: ["admin-collections"] as const,
   staff: (scope: string) => ["staff", scope] as const,
   schoolOrder: (id: string) => ["school-orders", id] as const,
   publisherBatches: ["publisher-batches"] as const,
@@ -200,6 +205,68 @@ export function useAccountMutation<V>(fn: (vars: V) => Promise<Account>) {
 }
 
 export const useRequestDeletion = () => useMutation({ mutationFn: endpoints.requestAccountDeletion })
+
+export const useAdminMoney = () => useQuery({ queryKey: queryKeys.adminMoney, queryFn: endpoints.getAdminMoney })
+export const useCollections = () => useQuery({ queryKey: queryKeys.collections, queryFn: endpoints.listCollections })
+
+/** Payout actions return the whole money page; the publisher's own payouts refresh too. */
+export function useMoneyMutation<V>(fn: (vars: V) => Promise<AdminMoney>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (money) => {
+      qc.setQueryData(queryKeys.adminMoney, money)
+      return qc.invalidateQueries({ queryKey: queryKeys.payouts })
+    },
+  })
+}
+
+export const useAdminOrders = () => useQuery({ queryKey: queryKeys.adminOrders, queryFn: endpoints.listAdminOrders })
+export const useAdminOrder = (id: string | null) =>
+  useQuery({ queryKey: [...queryKeys.adminOrders, id], queryFn: () => endpoints.getAdminOrder(id!), enabled: !!id })
+
+/** Order actions return the order; the list behind it refreshes. */
+export function useAdminOrderMutation<V>(fn: (vars: V) => Promise<AdminOrder>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (order) => {
+      qc.setQueryData([...queryKeys.adminOrders, order.id], order)
+      return qc.invalidateQueries({ queryKey: queryKeys.adminOrders, exact: true })
+    },
+  })
+}
+
+export const useAdminOrgs = (enabled = true) => useQuery({ queryKey: queryKeys.adminOrgs, queryFn: endpoints.listAdminOrgs, enabled })
+export const useAdminOrg = (id: string | null) =>
+  useQuery({ queryKey: [...queryKeys.adminOrgs, id], queryFn: () => endpoints.getAdminOrg(id!), enabled: !!id })
+
+/** Decisions and check changes return the organisation; the list and overview refresh behind it. */
+export function useOrgMutation<V>(fn: (vars: V) => Promise<AdminOrg>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (org) => {
+      qc.setQueryData([...queryKeys.adminOrgs, org.id], org)
+      return Promise.all([qc.invalidateQueries({ queryKey: queryKeys.adminOrgs, exact: true }), qc.invalidateQueries({ queryKey: queryKeys.adminOverview })])
+    },
+  })
+}
+
+export const useRoster = () => useQuery({ queryKey: queryKeys.roster, queryFn: endpoints.getRoster })
+
+/** Any change to students also changes parent orders and collection lists. */
+export function useRosterMutation<V, R>(fn: (vars: V) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.roster }),
+        qc.invalidateQueries({ queryKey: queryKeys.schoolOrders }),
+      ]),
+  })
+}
 
 export const useCollection = () => useQuery({ queryKey: queryKeys.collection, queryFn: endpoints.listCollection })
 

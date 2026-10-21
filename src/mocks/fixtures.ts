@@ -1,4 +1,6 @@
 import type {
+  AdminOrder,
+  AdminOrg,
   AdminOverview,
   Booklist,
   CatalogItem,
@@ -630,6 +632,43 @@ export const publisherPayouts: PublisherPayouts = {
   ],
 }
 
+/** Other publishers' payout accounts and payouts, for SchoolShop finance. Longhorn's come from publisherPayouts. */
+export type AdminPayoutSeed = PublisherPayouts["payouts"][number] & { publisherId: string; packs: number; holdReason: string | null }
+export const publisherAccounts: Record<string, { name: string; account: PublisherPayouts["account"] }> = {
+  "pub-moran": { name: "Moran Publishers", account: { method: "bank", accountName: "Moran (E.A.) Publishers Ltd", masked: "Equity Bank · Account *** 4410", status: "verified" } },
+  "pub-klb": { name: "Kenya Literature Bureau", account: { method: "bank", accountName: "Kenya Literature Bureau", masked: "KCB · Account *** 0042", status: "verified" } },
+  "pub-oxford": { name: "Oxford University Press East Africa", account: { method: "bank", accountName: "OUP East Africa Ltd", masked: "Stanbic · Account *** 7781", status: "verified" } },
+  "pub-spotlight": { name: "Spotlight Publishers", account: { method: "mpesa_paybill", accountName: "Spotlight Publishers (EA) Ltd", masked: "Paybill 247 *** 47 · Account SPOTLIGHT", status: "verified" } },
+  "pub-mentor": { name: "Mentor Publishers", account: { method: "mpesa_till", accountName: "Mentor Publishers", masked: "Till 881 *** 20", status: "verified" } },
+  // Changed their account two days ago: nothing goes out until someone confirms it with them.
+  "pub-kasuku": { name: "Kasuku Stationers", account: { method: "mpesa_paybill", accountName: "Kasuku Stationers Ltd", masked: "Paybill 400 *** 93 · Account KASUKU", status: "pending_verification" } },
+  "pub-storymoja": { name: "Storymoja", account: { method: "mpesa_till", accountName: "Storymoja Africa", masked: "Till 552 *** 08", status: "verified" } },
+}
+export const adminPayouts: AdminPayoutSeed[] = [
+  ["pub-moran", "Greenhill Academy", "Nakuru", 120, 82800, "2027-01-09T10:40:00+03:00", "queued"],
+  ["pub-moran", "Hillcrest Prep", "Nyeri", 180, 117000, "2027-01-12T14:00:00+03:00", "on_hold"],
+  ["pub-klb", "Greenhill Academy", "Nakuru", 312, 190320, "2027-01-08T11:15:00+03:00", "queued"],
+  ["pub-klb", "St. Mary's Primary", "Eldoret", 204, 124440, null, "held"],
+  ["pub-oxford", "Greenhill Academy", "Nakuru", 312, 215280, "2027-01-08T11:15:00+03:00", "paid"],
+  ["pub-oxford", "Kilimani Primary", "Nairobi", 96, 66240, "2027-01-10T09:30:00+03:00", "queued"],
+  ["pub-spotlight", "Riverside Junior School", "Kisumu", 178, 138840, "2027-01-11T12:20:00+03:00", "queued"],
+  ["pub-spotlight", "Sunrise Academy", "Machakos", 150, 117000, null, "held"],
+  ["pub-mentor", "St. Mary's Primary", "Eldoret", 64, 85120, "2027-01-10T15:00:00+03:00", "queued"],
+  ["pub-kasuku", "Greenhill Academy", "Nakuru", 312, 140400, "2027-01-08T11:15:00+03:00", "queued"],
+  ["pub-kasuku", "Kitale Hills Academy", "Kitale", 88, 39600, "2027-01-07T10:00:00+03:00", "queued"],
+  ["pub-storymoja", "Lakeview Primary", "Naivasha", 70, 36400, "2027-01-05T13:00:00+03:00", "paid"],
+].map(([publisherId, schoolName, town, packs, gross, receivedAt, status], i) => {
+  const mentor = publisherId === "pub-mentor"
+  const base = payout({
+    id: `apo-${i + 1}`, termName: "Term 1, 2027", schoolName: schoolName as string, town: town as string, deliveryNoteNo: `DN-${2100 + i}`,
+    receivedAt: receivedAt as string | null, grossCents: k(gross as number),
+    // The atlas sold out after these were paid: refunds to parents come off Mentor's payout.
+    deductionsCents: mentor ? k(7980) : 0, deductionNote: mentor ? "6 × Kenya Primary Atlas out of stock, refunded to parents" : null,
+    status: status as AdminPayoutSeed["status"], paidAt: status === "paid" ? "2027-01-10T10:00:00+03:00" : null, reference: status === "paid" ? `QJ${(i * 7919).toString(36).toUpperCase().padStart(6, "0")}X` : null,
+  })
+  return { ...base, publisherId: publisherId as string, packs: packs as number, holdReason: status === "on_hold" ? "Hillcrest Prep received 6 packs short. Hold until the missing packs arrive or parents are refunded." : null }
+})
+
 export const publisherSettings: PublisherSettings = {
   profile: {
     companyName: "Longhorn Publishers Ltd",
@@ -650,6 +689,190 @@ export const publisherSettings: PublisherSettings = {
   },
 }
 
+/** What only SchoolShop admins see about an order: who paid, the payment attempts and anything that needs a person. */
+export type AdminOrderExtra = {
+  schoolId: string
+  parentPhone: string | null
+  createdAt: string
+  issue: AdminOrder["issue"]
+  issueDetail: string | null
+  payments: AdminOrder["payments"]
+  events: AdminOrder["events"]
+  /** Mock only: what M-Pesa answers when an admin checks an unconfirmed payment. */
+  confirmsOnCheck?: boolean
+}
+
+/*
+ * Orders at schools other than Greenhill, so admins have the whole platform
+ * to search, including the cases on the overview: four M-Pesa payments with
+ * no callback, Hillcrest's short delivery from Moran and six refunds for an
+ * out-of-stock atlas (KES 7,980).
+ */
+export const adminExtraOrders: SchoolOrderDetail[] = []
+export const adminOrderExtras: Record<string, AdminOrderExtra> = {}
+{
+  const rand = seeded(909)
+  const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]
+  // Same clock as Greenhill's orders: the term's handout week, mid-January 2027.
+  const now = Date.parse("2027-01-14T10:00:00+03:00")
+  const ago = (mins: number) => new Date(now - mins * 60_000).toISOString().replace(/\.\d+Z$/, "+00:00")
+  const receipt = () => "Q" + Array.from({ length: 9 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(rand() * 32)]).join("")
+  const phone = () => `2547${Math.floor(10 + rand() * 89)}${String(Math.floor(rand() * 1_000_000)).padStart(6, "0")}`
+  const shelf = [
+    ["Spotlight Mathematics", "Spotlight Publishers", 780], ["Excel & Ace English", "Longhorn", 720], ["Kiswahili Mufti", "Oxford", 690],
+    ["Primary Science Activities", "Moran", 650], ["Social Studies Explorer", "KLB", 610], ["Exercise books, 96 pages ×10", "Kasuku", 450],
+    ["Creative Arts Workbook", "Storymoja", 520], ["Kenya Primary Atlas", "Mentor Publishers", 1330],
+  ] as const
+  const schools = [["sch-stmarys", "St. Mary's Primary", "SM"], ["sch-kilimani", "Kilimani Primary", "KP"], ["sch-riverside", "Riverside Junior School", "RJ"], ["sch-hillcrest", "Hillcrest Prep", "HP"], ["sch-sunrise", "Sunrise Academy", "SA"]] as const
+  const classes = ["4 Blue", "5 Green", "6 Red", "7 East", "3 West"]
+  let no = 21000
+  const make = (school: (typeof schools)[number], status: SchoolOrderDetail["status"], opts: { lines?: (typeof shelf)[number][]; minsAgo?: number; extra?: Partial<AdminOrderExtra>; itemStatus?: (title: string) => "active" | "unavailable" } = {}) => {
+    const lines = opts.lines ?? shelf.filter((_, i) => i < 5 || rand() < 0.35)
+    const number = `SS-${no++}`
+    const id = `ord-${number.slice(3)}`
+    const last = pick(surnames)
+    const items = lines.map(([title, publisherName, price], n) => ({ id: `${id}-${n}`, title, publisherName, qty: 1, unitPriceCents: k(price), status: opts.itemStatus?.(title) ?? ("active" as const) }))
+    const total = items.reduce((t, it) => t + it.unitPriceCents, 0)
+    const minsAgo = opts.minsAgo ?? Math.floor(60 * 24 * (2 + rand() * 30))
+    const paid = !["pending_payment", "payment_failed", "cancelled"].includes(status)
+    const created = ago(minsAgo)
+    const paidAt = paid ? ago(minsAgo - 3) : null
+    const parentPhone = phone()
+    const mpesa = paid ? receipt() : null
+    const publishers = [...new Set(items.map((it) => it.publisherName))]
+    const shipment = status === "at_school" || status === "collected" ? "received" : status === "in_fulfilment" ? pick(["collecting", "ready_to_pack", "dispatched"] as const) : "collecting"
+    adminExtraOrders.push({
+      id, number, termName: "Term 1, 2027", status, studentName: `${pick(firstNames)} ${last}`, schoolName: school[1], className: pick(classes),
+      subtotalCents: total, totalCents: total, collectionCode: paid ? String(1000 + Math.floor(rand() * 9000)) : null, paidAt, mpesaReceipt: mpesa,
+      expectedAtSchool: paid ? "2027-01-22" : null, collectedAt: status === "collected" ? ago(60 * 24) : null, items,
+      shipments: publishers.map((publisherName) => {
+        const n = items.filter((it) => it.publisherName === publisherName).length
+        return { publisherName, summary: `${n} item${n === 1 ? "" : "s"}`, status: paid ? shipment : "collecting" }
+      }),
+      admissionNo: `${school[2]}/2027/${String(100 + no).slice(-4)}`, parentName: `${pick(parentFirst)} ${last}`, parentPhone: null,
+    })
+    adminOrderExtras[id] = {
+      schoolId: school[0], parentPhone, createdAt: created, issue: null, issueDetail: null,
+      payments: status === "pending_payment" ? [] : [{ id: `${id}-p1`, at: paidAt ?? ago(minsAgo - 2), phone: parentPhone, amountCents: total, status: paid ? "succeeded" : "failed", receipt: mpesa, failureReason: paid ? null : pick(["The parent cancelled on their phone", "Not enough money in M-Pesa", "No PIN entered in time"]) }],
+      events: [],
+      ...opts.extra,
+    }
+    return id
+  }
+  // Ordinary orders across five schools.
+  const mix: SchoolOrderDetail["status"][] = ["in_fulfilment", "in_fulfilment", "at_school", "collected", "collected", "paid", "pending_payment", "payment_failed"]
+  for (let i = 0; i < 48; i++) make(schools[i % schools.length], mix[i % mix.length])
+  // No callback from M-Pesa yet.
+  ;[[0, 6, true], [1, 11, true], [2, 18, false], [4, 34, true]].forEach(([si, mins, ok]) => {
+    const id = make(schools[si as number], "pending_payment", { minsAgo: (mins as number) + 2 })
+    const o = adminExtraOrders.at(-1)!
+    const x = adminOrderExtras[id]
+    Object.assign(x, {
+      issue: "payment_unconfirmed", issueDetail: `M-Pesa sent no result for ${mins} minutes. Check the payment before telling the parent to pay again.`, confirmsOnCheck: ok,
+      payments: [{ id: `${id}-p1`, at: ago(mins as number), phone: x.parentPhone, amountCents: o.totalCents, status: "unconfirmed", receipt: null, failureReason: null }],
+    })
+  })
+  // Hillcrest: Moran's delivery came six packs short.
+  for (let i = 0; i < 6; i++) {
+    const id = make(schools[3], "at_school", { lines: [shelf[3], shelf[0], shelf[4]] })
+    const o = adminExtraOrders.at(-1)!
+    o.className = "5 Green"
+    Object.assign(adminOrderExtras[id], { issue: "short_delivery", issueDetail: "Hillcrest Prep received Moran's delivery 6 packs short. This student's Primary Science Activities pack is missing.", events: [{ id: `${id}-e1`, at: ago(60 * 26), actor: "Hillcrest Prep", text: "reported Moran's delivery 6 packs short" }] })
+  }
+  // The atlas sold out at Mentor after these were paid: refund the atlas, keep the rest.
+  for (let i = 0; i < 6; i++) {
+    const id = make(schools[i % 2], "in_fulfilment", { lines: [shelf[0], shelf[1], shelf[7]], itemStatus: (t) => (t === "Kenya Primary Atlas" ? "unavailable" : "active") })
+    Object.assign(adminOrderExtras[id], { issue: "refund_due", issueDetail: "Mentor Publishers can't supply Kenya Primary Atlas. Refund KES 1,330 to the parent.", events: [{ id: `${id}-e1`, at: ago(60 * 5), actor: "Mentor Publishers", text: "marked Kenya Primary Atlas out of stock" }] })
+  }
+}
+
+/*
+ * Every school and publisher, as SchoolShop admins see them: 41 live schools,
+ * 9 live publishers, 5 applications waiting, one suspended school and one
+ * rejected application.
+ */
+export const adminOrgs: AdminOrg[] = (() => {
+  const day = (d: number, h = 9) => new Date(Date.now() - d * 86_400_000 - (h % 6) * 3_600_000).toISOString().replace(/\.\d+Z$/, "+00:00")
+  const verified = (label: string, file: string, d = 120): AdminOrg["checks"][number] => ({ id: label.toLowerCase().replace(/[^a-z]+/g, "-"), label, state: "verified", fileName: file, uploadedAt: day(d) })
+  const check = (label: string, state: AdminOrg["checks"][number]["state"], file: string | null, d = 2): AdminOrg["checks"][number] => ({ id: label.toLowerCase().replace(/[^a-z]+/g, "-"), label, state, fileName: state === "missing" ? null : file, uploadedAt: state === "missing" ? null : day(d) })
+  const schoolChecks = (name: string, d = 120) => [
+    verified("Ministry of Education registration", `${name} MOE certificate.pdf`, d),
+    verified("KRA PIN certificate", "KRA PIN.pdf", d),
+    verified("Head teacher's phone verified", "Call on file", d),
+    verified("Class list", "Class list.csv", d),
+  ]
+  const pubChecks = (d = 300) => [
+    verified("Certificate of incorporation", "Incorporation.pdf", d),
+    verified("KRA PIN certificate", "KRA PIN.pdf", d),
+    verified("Payout account", "Bank letter.pdf", d),
+    verified("Catalog sample", "Catalog.csv", d),
+  ]
+  const orgs: AdminOrg[] = []
+  const add = (o: Partial<AdminOrg> & Pick<AdminOrg, "id" | "type" | "name" | "town" | "county" | "status">) => {
+    const checks = o.checks ?? (o.type === "school" ? schoolChecks(o.name) : pubChecks())
+    orgs.push({
+      appliedAt: day(200),
+      contactName: "—",
+      contactPhone: "254700000000",
+      contactEmail: null,
+      registrationNo: null,
+      kraPin: null,
+      verifiedAt: o.status === "live" || o.status === "suspended" ? day(150) : null,
+      suspendedReason: null,
+      stats: [],
+      history: [],
+      ...o,
+      checks,
+      openChecks: checks.filter((c) => c.state !== "verified").length,
+    })
+  }
+
+  // Live schools we already know from the rest of the demo.
+  add({ id: "sch-greenhill", type: "school", name: "Greenhill Academy", town: "Nakuru", county: "Nakuru", status: "live", contactName: "Grace Wambui", contactPhone: "254722000111", contactEmail: "office@greenhill.ac.ke", registrationNo: "MOE/NKR/P/1187", kraPin: "P051887120K", verifiedAt: "2026-08-02T10:15:00+03:00",
+    stats: [{ label: "Students", value: "540" }, { label: "Paid orders this term", value: "312" }, { label: "Sales this term", value: "KES 1,006,520" }, { label: "Booklists", value: "5 published, 1 draft" }],
+    history: [{ id: "h1", at: "2026-08-02T10:15:00+03:00", actor: "SchoolShop Ops", text: "approved Greenhill Academy" }] })
+  for (const [id, name, town, county] of [
+    ["sch-stmarys", "St. Mary's Primary", "Eldoret", "Uasin Gishu"], ["sch-kilimani", "Kilimani Primary", "Nairobi", "Nairobi"], ["sch-riverside", "Riverside Junior School", "Kisumu", "Kisumu"],
+    ["sch-hillcrest", "Hillcrest Prep", "Nyeri", "Nyeri"], ["sch-sunrise", "Sunrise Academy", "Machakos", "Machakos"], ["sch-lakeview", "Lakeview Primary", "Naivasha", "Nakuru"], ["sch-kitale", "Kitale Hills Academy", "Kitale", "Trans Nzoia"],
+  ]) add({ id, type: "school", name, town, county, status: "live", stats: [{ label: "Paid orders this term", value: String(90 + name.length * 7) }] })
+  // The rest of the 41 live schools.
+  const first = ["Upendo", "Neema", "Jabali", "Mlima", "Bidii", "Faraja", "Imani", "Nuru", "Tumaini", "Baraka", "Shujaa", "Uzima", "Pendo", "Kesho", "Juhudi", "Heri", "Wema"]
+  const kinds = ["Primary", "Academy", "Junior School"]
+  const places: [string, string][] = [["Thika", "Kiambu"], ["Kericho", "Kericho"], ["Embu", "Embu"], ["Meru", "Meru"], ["Kakamega", "Kakamega"], ["Nanyuki", "Laikipia"], ["Kisii", "Kisii"], ["Malindi", "Kilifi"], ["Bungoma", "Bungoma"], ["Kitui", "Kitui"], ["Ruiru", "Kiambu"]]
+  for (let i = 0; orgs.length < 41; i++) {
+    const [town, county] = places[i % places.length]
+    add({ id: `sch-gen-${i}`, type: "school", name: `${first[i % first.length]} ${kinds[i % kinds.length]}${i >= first.length ? ` ${town}` : ""}`, town, county, status: "live", stats: [{ label: "Paid orders this term", value: String(40 + ((i * 37) % 260)) }] })
+  }
+  // Live publishers.
+  for (const [id, name, town] of [["pub-longhorn", "Longhorn Publishers", "Nairobi"], ["pub-klb", "Kenya Literature Bureau", "Nairobi"], ["pub-oxford", "Oxford University Press East Africa", "Nairobi"], ["pub-moran", "Moran Publishers", "Nairobi"], ["pub-kasuku", "Kasuku Stationers", "Nairobi"], ["pub-storymoja", "Storymoja", "Nairobi"], ["pub-spotlight", "Spotlight Publishers", "Nairobi"], ["pub-mentor", "Mentor Publishers", "Nairobi"], ["pub-phoenix", "Phoenix Publishers", "Nairobi"]])
+    add({ id, type: "publisher", name, town, county: "Nairobi", status: "live", contactName: id === "pub-longhorn" ? "Peter Kamau" : "—", contactPhone: id === "pub-longhorn" ? "254700000444" : "254700000000",
+      stats: id === "pub-longhorn" ? [{ label: "Live titles", value: "7" }, { label: "Schools supplied", value: "7" }, { label: "Paid out this term", value: "KES 2,187,200" }] : [] })
+
+  // Waiting for review: three schools, two publishers.
+  add({ id: "app-mwangaza", type: "school", name: "Mwangaza Academy", town: "Thika", county: "Kiambu", status: "pending", appliedAt: day(1, 15), contactName: "Joyce Wairimu", contactPhone: "254733000222", contactEmail: "head@mwangaza.ac.ke", registrationNo: null, kraPin: "P052209981Q",
+    checks: [check("Ministry of Education registration", "missing", null), check("KRA PIN certificate", "uploaded", "KRA PIN certificate.pdf", 1), check("Head teacher's phone verified", "verified", "Verified by one-time code", 1), check("Class list", "uploaded", "Mwangaza class lists 2027.csv", 1)],
+    history: [{ id: "h1", at: day(1, 15), actor: "Joyce Wairimu", text: "applied as a school" }] })
+  add({ id: "app-bahari", type: "school", name: "Bahari Junior School", town: "Mombasa", county: "Mombasa", status: "pending", appliedAt: day(0, 6), contactName: "Hassan Ali", contactPhone: "254711000333", contactEmail: "admin@baharijunior.sc.ke", registrationNo: "MOE/MSA/P/2214", kraPin: "P051774409M",
+    checks: [check("Ministry of Education registration", "uploaded", "MOE certificate.pdf", 0), check("KRA PIN certificate", "uploaded", "KRA PIN.pdf", 0), check("Head teacher's phone verified", "verified", "Verified by one-time code", 0), check("Class list", "uploaded", "Classes.csv", 0)],
+    history: [{ id: "h1", at: day(0, 6), actor: "Hassan Ali", text: "applied as a school" }] })
+  add({ id: "app-tumaini", type: "school", name: "Tumaini Primary", town: "Machakos", county: "Machakos", status: "info_requested", appliedAt: day(4), contactName: "Peter Musyoka", contactPhone: "254722550101", contactEmail: null, registrationNo: "MOE/MKS/P/0931", kraPin: null,
+    checks: [check("Ministry of Education registration", "verified", "MOE.pdf", 4), check("KRA PIN certificate", "failed", "KRA PIN.jpg", 4), check("Head teacher's phone verified", "verified", "Verified by one-time code", 4), check("Class list", "missing", null)],
+    history: [{ id: "h2", at: day(2), actor: "Kevin Mutai", text: "asked for more information: \"The KRA PIN photo is unreadable. Please upload the PDF from iTax, and your class lists.\"" }, { id: "h1", at: day(4), actor: "Peter Musyoka", text: "applied as a school" }] })
+  add({ id: "app-jamii", type: "publisher", name: "Jamii Educational Books", town: "Nairobi", county: "Nairobi", status: "pending", appliedAt: day(3), contactName: "Esther Njoki", contactPhone: "254700000555", contactEmail: "esther@jamiibooks.co.ke", registrationNo: "PVT-2019-0048812", kraPin: "P051998201L",
+    checks: [check("Certificate of incorporation", "uploaded", "CR12 and incorporation.pdf", 3), check("KRA PIN certificate", "uploaded", "KRA PIN.pdf", 3), check("Payout account", "missing", null), check("Catalog sample", "uploaded", "Jamii catalog 2027.csv", 3)],
+    history: [{ id: "h1", at: day(3), actor: "Esther Njoki", text: "applied as a publisher" }] })
+  add({ id: "app-uhuru", type: "publisher", name: "Uhuru Stationers", town: "Kisumu", county: "Kisumu", status: "pending", appliedAt: day(1), contactName: "Otieno Ochieng", contactPhone: "254790000555", contactEmail: null, registrationNo: "BN-2016-771204", kraPin: "A009812214Z",
+    checks: [check("Certificate of incorporation", "uploaded", "Business name certificate.pdf", 1), check("KRA PIN certificate", "uploaded", "KRA PIN.pdf", 1), check("Payout account", "uploaded", "M-Pesa till confirmation.png", 1), check("Catalog sample", "uploaded", "Price list.csv", 1)],
+    history: [{ id: "h1", at: day(1), actor: "Otieno Ochieng", text: "applied as a publisher" }] })
+  // Suspended and rejected.
+  add({ id: "sch-brightstar", type: "school", name: "Brightstar School", town: "Eldoret", county: "Uasin Gishu", status: "suspended", contactName: "Daniel Rono", contactPhone: "254722909090", suspendedReason: "Parents report paid packs not handed out. Paused while we investigate.",
+    history: [{ id: "h2", at: day(6), actor: "SchoolShop Ops", text: "paused Brightstar School: \"Parents report paid packs not handed out. Paused while we investigate.\"" }, { id: "h1", at: day(200), actor: "SchoolShop Ops", text: "approved Brightstar School" }] })
+  add({ id: "app-quickbooks", type: "publisher", name: "QuickBooks Kenya Ltd", town: "Nairobi", county: "Nairobi", status: "rejected", appliedAt: day(9), contactName: "J. Doe", contactPhone: "254701000999",
+    checks: [check("Certificate of incorporation", "failed", "certificate.jpg", 9), check("KRA PIN certificate", "missing", null), check("Payout account", "missing", null), check("Catalog sample", "missing", null)],
+    history: [{ id: "h2", at: day(8), actor: "Kevin Mutai", text: "rejected the application: \"The incorporation certificate doesn't match the company name and no KRA PIN was provided.\"" }, { id: "h1", at: day(9), actor: "J. Doe", text: "applied as a publisher" }] })
+  return orgs
+})()
+
 export const adminOverview: AdminOverview = {
   termName: "Term 1, 2027",
   salesCents: k(4_820_000),
@@ -661,9 +884,9 @@ export const adminOverview: AdminOverview = {
   alerts: [
     { id: "al-1", severity: "high", title: "3 schools waiting for verification", detail: "Oldest: 2 days ago", href: "/admin/organisations" },
     { id: "al-2", severity: "high", title: "2 publisher applications", detail: "Documents uploaded", href: "/admin/organisations" },
-    { id: "al-3", severity: "medium", title: "4 M-Pesa payments not confirmed", detail: "No callback after 2 minutes, status check queued", href: "/admin/payments" },
-    { id: "al-4", severity: "medium", title: "1 short-delivery dispute", detail: "Hillcrest Prep · Moran · 6 packs", href: "/admin/payments" },
-    { id: "al-5", severity: "info", title: "6 refunds to approve", detail: "Out-of-stock lines, KES 7,980", href: "/admin/payments" },
+    { id: "al-3", severity: "medium", title: "4 M-Pesa payments not confirmed", detail: "No callback after 2 minutes, status check queued", href: "/admin/orders?show=attention" },
+    { id: "al-4", severity: "medium", title: "1 short-delivery dispute", detail: "Hillcrest Prep · Moran · 6 packs", href: "/admin/orders?show=attention" },
+    { id: "al-5", severity: "info", title: "6 refunds to approve", detail: "Out-of-stock lines, KES 7,980", href: "/admin/orders?show=attention" },
   ],
 }
 

@@ -44,7 +44,7 @@ const publisherNav: DashboardNavItem[] = [
 
 const adminNav: DashboardNavItem[] = [
   { to: "/admin", label: "Overview", end: true, permission: "overview.view" },
-  { to: "/admin/organisations", label: "Schools & publishers", badge: 5, permission: "orgs.view" },
+  { to: "/admin/organisations", label: "Schools & publishers", permission: "orgs.view" },
   { to: "/admin/orders", label: "Orders", permission: "orders.view" },
   { to: "/admin/payments", label: "Payments & payouts", permission: "money.view" },
   { to: "/admin/refunds", label: "Refunds & disputes", permission: "money.view" },
@@ -107,11 +107,11 @@ export const router = createBrowserRouter([
           { path: "booklists/:id", lazy: page(() => import("@/pages/school/SchoolBooklistBuilderPage"), "SchoolBooklistBuilderPage") },
           { path: "orders", lazy: page(() => import("@/pages/school/SchoolOrdersPage"), "SchoolOrdersPage") },
           { path: "staff", lazy: page(() => import("@/pages/school/SchoolStaffPage"), "SchoolStaffPage") },
+          { path: "students", lazy: page(() => import("@/pages/school/SchoolStudentsPage"), "SchoolStudentsPage") },
           { path: "collection", lazy: page(() => import("@/pages/school/SchoolCollectionPage"), "SchoolCollectionPage") },
           { path: "settings", lazy: page(() => import("@/pages/school/SchoolSettingsPage"), "SchoolSettingsPage") },
           { path: "deliveries", lazy: page(() => import("@/pages/school/SchoolDeliveriesPage"), "SchoolDeliveriesPage") },
           { path: "deliveries/:id", lazy: page(() => import("@/pages/school/SchoolReceiveDeliveryPage"), "SchoolReceiveDeliveryPage") },
-          ...comingSoon(schoolNav.filter((n) => n.to === "/school/students"), "/school"),
         ],
       },
     ],
@@ -142,7 +142,10 @@ export const router = createBrowserRouter([
         children: [
           { index: true, lazy: page(() => import("@/pages/admin/AdminOverviewPage"), "AdminOverviewPage") },
           { path: "staff", lazy: page(() => import("@/pages/admin/AdminStaffPage"), "AdminStaffPage") },
-          ...comingSoon(adminNav.filter((n) => n.to !== "/admin/staff"), "/admin"),
+          { path: "organisations", lazy: page(() => import("@/pages/admin/AdminOrganisationsPage"), "AdminOrganisationsPage") },
+          { path: "orders", lazy: page(() => import("@/pages/admin/AdminOrdersPage"), "AdminOrdersPage") },
+          { path: "payments", lazy: page(() => import("@/pages/admin/AdminMoneyPage"), "AdminMoneyPage") },
+          ...comingSoon(adminNav.filter((n) => !["/admin/staff", "/admin/organisations", "/admin/orders", "/admin/payments"].includes(n.to)), "/admin"),
         ],
       },
     ],

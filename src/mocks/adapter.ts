@@ -1,7 +1,8 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios"
 
-import type { Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail } from "@/lib/api/schemas"
+import type { AdminOrder, AdminOrg, AdminPayout, Collection, Booklist, CatalogItem, CollectionRow, Order, Payment, PublisherPayouts, SchoolOrderDetail, StudentOrderRow } from "@/lib/api/schemas"
 import { ownerRole, permissionsFor, roleDef, type OrgType } from "@/lib/access"
+import { formatKes } from "@/lib/format"
 import * as db from "@/mocks/fixtures"
 
 /*
@@ -34,6 +35,10 @@ const batches = new Map(db.publisherBatches.map((b) => [b.id, structuredClone(b)
 let deliveryNoteSeq = 1042
 
 const payouts = structuredClone(db.publisherPayouts)
+const otherPayouts = db.adminPayouts.map((p) => structuredClone(p))
+const publisherAccounts = structuredClone(db.publisherAccounts)
+/** Holds and the finance team's actions, per payout (Longhorn's and everyone else's). */
+const payoutNotes = new Map<string, { holdReason: string | null; events: AdminPayout["events"] }>()
 const settings = structuredClone(db.publisherSettings)
 
 const catalog = new Map(db.publisherCatalog.map((c) => [c.id, structuredClone(c)]))
@@ -59,13 +64,177 @@ const schoolSettings = structuredClone(db.schoolSettings)
 /** Wrong-code attempts per class; five in a row locks that class for a minute. */
 const codeAttempts = new Map<string, { wrong: number; lockedUntil: number }>()
 
+/** Which students' parents have linked them on SchoolShop: everyone who ordered, and two in three of the rest. */
+const linked = new Set(db.schoolOrderRows.filter((r, i) => r.order || (r.parentPhone && i % 3 !== 0)).map((r) => r.studentId))
+let studentSeq = 5000
+const mask = (e164: string) => { const l = e164.replace(/^254/, "0"); return `${l.slice(0, 4)} ••• ${l.slice(-3)}` }
+const allClasses = () => db.schoolGrades.flatMap((g) => g.classNames.map((className) => ({ className, gradeName: g.gradeName })))
+
+const adminOrgs = new Map(db.adminOrgs.map((o) => [o.id, structuredClone(o)]))
+const orgSummary = ({ id, type, name, town, county, status, appliedAt, checks }: AdminOrg) => ({ id, type, name, town, county, status, appliedAt, openChecks: checks.filter((c) => c.state !== "verified").length })
+
 const schoolRows = db.schoolOrderRows.map((r) => structuredClone(r))
 const schoolOrders = new Map(db.schoolOrderDetails.map((o) => [o.id, structuredClone(o)]))
 const schoolDeliveries = new Map(db.schoolDeliveries.map((d) => [d.id, structuredClone(d)]))
 
 const orders = new Map(db.orders.map((o) => [o.id, structuredClone(o)]))
+const otherSchoolOrders = new Map(db.adminExtraOrders.map((o) => [o.id, structuredClone(o)]))
+const orderExtras = new Map(Object.entries(db.adminOrderExtras).map(([id, x]) => [id, structuredClone(x)]))
 const payments = new Map<string, Payment & { checks: number }>()
 let orderSeq = 20430
+
+function studentView(r: StudentOrderRow) {
+  return {
+    studentId: r.studentId,
+    name: r.studentName,
+    admissionNo: r.admissionNo,
+    gradeName: r.gradeName,
+    className: r.className,
+    parentName: r.parentName,
+    parentPhone: r.parentPhone,
+    parentLinked: linked.has(r.studentId),
+    hasOrder: !!r.order,
+  }
+}
+
+function createStudent(body: Record<string, unknown>) {
+  const name = String(body.name ?? "").trim()
+  const admissionNo = String(body.admissionNo ?? "").trim().toUpperCase()
+  if (name.length < 2) throw new HttpError(400, { name: ["Enter the student's full name."] })
+  if (!admissionNo) throw new HttpError(400, { admissionNo: ["Enter their admission number."] })
+  if (schoolRows.some((r) => r.admissionNo === admissionNo)) throw new HttpError(400, { admissionNo: [`${admissionNo} is already on the roll.`] })
+  const cls = allClasses().find((c) => c.className === body.className) ?? raise(new HttpError(400, { className: ["Choose a class."] }))
+  const phone = body.parentPhone ? String(body.parentPhone) : null
+  if (phone && !/^254[17]\d{8}$/.test(phone)) throw new HttpError(400, { parentPhone: ["Enter a Kenyan mobile number."] })
+  const row: StudentOrderRow = {
+    studentId: `stu-${++studentSeq}`,
+    studentName: name,
+    admissionNo,
+    gradeName: cls.gradeName,
+    className: cls.className,
+    parentName: body.parentName ? String(body.parentName).trim() : null,
+    parentPhone: phone ? mask(phone) : null,
+    order: null,
+    remindedAt: null,
+  }
+  schoolRows.push(row)
+  return row
+}
+
+/* ── Orders as SchoolShop admins see them: every school, the payments behind them and what needs a person. ── */
+
+const allOrders = (): Order[] => [...schoolOrders.values(), ...otherSchoolOrders.values(), ...orders.values()]
+const findOrder = (id: string): Order => schoolOrders.get(id) ?? otherSchoolOrders.get(id) ?? orders.get(id) ?? raise(notFound())
+const stamp = (d = new Date()) => d.toISOString().replace(/\.\d+Z$/, "+00:00")
+const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+
+function orderExtra(o: Order): db.AdminOrderExtra {
+  let x = orderExtras.get(o.id)
+  if (!x) {
+    const own = orders.has(o.id)
+    const masked = (o as Partial<SchoolOrderDetail>).parentPhone
+    // Greenhill's staff see "0712 ••• 345"; admins see the whole number.
+    const phone = own ? "254712345678" : masked ? `254${masked.slice(1, 4)}${String(hash(o.id) % 1000).padStart(3, "0")}${masked.slice(-3)}` : null
+    const created = o.paidAt ? stamp(new Date(Date.parse(o.paidAt) - 4 * 60_000)) : stamp(new Date(Date.parse("2026-12-28T09:00:00+03:00") + (hash(o.id) % 2000) * 60_000))
+    x = { schoolId: db.schools.find((sc) => sc.name === o.schoolName)?.id ?? "sch-greenhill", parentPhone: phone, createdAt: created, issue: null, issueDetail: null, payments: [], events: [] }
+    orderExtras.set(o.id, x)
+  }
+  // Orders without seeded payments follow the order itself, so parents paying in this session show up.
+  if (!db.adminOrderExtras[o.id] && x.parentPhone) {
+    const failed = o.status === "payment_failed"
+    x.payments = o.paidAt || failed ? [{ id: `${o.id}-p1`, at: o.paidAt ?? x.createdAt, phone: x.parentPhone, amountCents: o.totalCents, status: failed ? "failed" : "succeeded", receipt: o.mpesaReceipt, failureReason: failed ? "The parent cancelled on their phone" : null }] : []
+  }
+  return x
+}
+
+const parentNameOf = (o: Order) => (orders.has(o.id) ? db.demoUsers["254712345678"].name : ((o as Partial<SchoolOrderDetail>).parentName ?? null))
+const refundedCents = (o: Order) => o.items.filter((i) => i.status === "refunded").reduce((t, i) => t + i.unitPriceCents * i.qty, 0)
+const display = (e164: string | null) => (e164 ? e164.replace(/^254(\d{3})(\d{3})(\d{3})$/, "0$1 $2 $3") : null)
+
+function adminOrderSummary(o: Order) {
+  const x = orderExtra(o)
+  return {
+    id: o.id, number: o.number, status: o.status, studentName: o.studentName, className: o.className, schoolId: x.schoolId, schoolName: o.schoolName,
+    parentName: parentNameOf(o), parentPhone: display(x.parentPhone), totalCents: o.totalCents, refundedCents: refundedCents(o), createdAt: x.createdAt, mpesaReceipt: o.mpesaReceipt, issue: x.issue,
+  }
+}
+
+function adminOrder(o: Order): AdminOrder {
+  const x = orderExtra(o)
+  const parent = parentNameOf(o) ?? "The parent"
+  const kes = (c: number) => `KES ${(c / 100).toLocaleString("en-KE")}`
+  // The story so far, newest first: what happened to the order, then what people at SchoolShop did.
+  const derived = [
+    { id: "placed", at: x.createdAt, actor: parent, text: `placed the order for ${o.studentName}` },
+    ...x.payments.map((p) => p.status === "unconfirmed"
+      ? { id: `pay-${p.id}`, at: p.at, actor: "SchoolShop", text: `sent an M-Pesa request for ${kes(p.amountCents)} to ${display(p.phone)}. M-Pesa hasn't answered.` }
+      : { id: `pay-${p.id}`, at: p.at, actor: "M-Pesa", text: p.status === "succeeded" ? `confirmed ${kes(p.amountCents)} from ${display(p.phone)} · ${p.receipt}` : `payment failed: ${p.failureReason}` }),
+    ...(o.collectedAt ? [{ id: "collected", at: o.collectedAt, actor: o.schoolName, text: `handed the pack to ${o.studentName}` }] : []),
+  ]
+  return {
+    ...o, schoolId: x.schoolId, admissionNo: (o as Partial<SchoolOrderDetail>).admissionNo ?? null, parentName: parentNameOf(o), parentPhone: display(x.parentPhone),
+    createdAt: x.createdAt, refundedCents: refundedCents(o), issue: x.issue, issueDetail: x.issueDetail,
+    payments: x.payments.map((p) => ({ ...p, phone: display(p.phone)! })),
+    events: [...x.events, ...derived].sort((a, b) => b.at.localeCompare(a.at)),
+  }
+}
+
+function logOrder(o: Order, userId: string | null, text: string) {
+  const x = orderExtra(o)
+  x.events.unshift({ id: `ev-${Date.now()}-${x.events.length}`, at: stamp(), actor: usersById().find((u) => u.id === userId)?.name ?? "SchoolShop", text })
+}
+
+/** Keep the school's own order list in step with what admins change. */
+function syncSchoolRow(o: Order) {
+  const row = schoolRows.find((r) => r.order?.id === o.id)
+  if (row?.order) row.order.status = o.status
+}
+
+/* ── Payouts across every publisher. Longhorn's are the same records its own Payouts page reads. ── */
+
+type PayoutRecord = (typeof payouts.payouts)[number]
+const longhornHold = (p: PayoutRecord) => (p.status === "on_hold" ? `${p.schoolName} reported a short delivery. ${p.deductionNote ?? ""}`.trim() : null)
+function payoutNote(p: PayoutRecord & { holdReason?: string | null }) {
+  let n = payoutNotes.get(p.id)
+  if (!n) payoutNotes.set(p.id, (n = { holdReason: p.holdReason !== undefined ? p.holdReason : longhornHold(p), events: [] }))
+  return n
+}
+const accountFor = (publisherId: string) => (publisherId === "pub-longhorn" ? payouts.account : publisherAccounts[publisherId].account)
+
+function adminPayouts(): AdminPayout[] {
+  const all = [
+    ...payouts.payouts.filter((p) => p.termName === "Term 1, 2027").map((p) => ({ ...p, publisherId: "pub-longhorn", packs: Math.round(p.grossCents / 60_000) })),
+    ...otherPayouts.map(({ holdReason: _h, ...p }) => p),
+  ]
+  const order = { queued: 0, on_hold: 1, held: 2, paid: 3 }
+  return all
+    .map((p) => {
+      const rec = findPayout(p.id)
+      const note = payoutNote(rec)
+      const derived = [
+        ...(p.receivedAt ? [{ id: "received", at: p.receivedAt, actor: p.schoolName, text: `confirmed the delivery (${p.deliveryNoteNo})` }] : []),
+        ...(p.paidAt && !note.events.some((e) => e.text.startsWith("released")) ? [{ id: "paid", at: p.paidAt, actor: "SchoolShop Finance", text: `released the payout · ${p.reference}` }] : []),
+      ]
+      return {
+        ...p, publisherName: p.publisherId === "pub-longhorn" ? "Longhorn Publishers" : publisherAccounts[p.publisherId].name, account: accountFor(p.publisherId),
+        holdReason: p.status === "on_hold" ? note.holdReason : null, events: [...note.events, ...derived].sort((a, b) => b.at.localeCompare(a.at)),
+      }
+    })
+    .sort((a, b) => order[a.status] - order[b.status] || (a.receivedAt ?? "").localeCompare(b.receivedAt ?? ""))
+}
+function findPayout(id: string): PayoutRecord & { publisherId?: string; holdReason?: string | null } {
+  return payouts.payouts.find((p) => p.id === id) ?? otherPayouts.find((p) => p.id === id) ?? raise(notFound())
+}
+const publisherOf = (id: string) => (payouts.payouts.some((p) => p.id === id) ? "pub-longhorn" : findPayout(id).publisherId!)
+function logPayout(id: string, userId: string | null, text: string) {
+  payoutNote(findPayout(id)).events.unshift({ id: `pe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, at: stamp(), actor: usersById().find((u) => u.id === userId)?.name ?? "SchoolShop", text })
+}
+const money = () => ({ termName: "Term 1, 2027", commissionRate: payouts.commissionRate, payouts: adminPayouts() })
+
+function logOrg(org: AdminOrg, userId: string | null, text: string) {
+  const actor = usersById().find((u) => u.id === userId)?.name ?? "SchoolShop"
+  org.history.unshift({ id: `h-${Date.now()}-${org.history.length}`, at: new Date().toISOString().replace("Z", "+00:00"), actor, text })
+}
 
 function collectionRow(o: SchoolOrderDetail): CollectionRow {
   const waitingFor = o.shipments.filter((s) => s.status !== "received").map((s) => s.publisherName)
@@ -120,6 +289,7 @@ const guards: Array<[method: string, path: RegExp, orgType: OrgType, permission:
   ["*", /^\/school\/deliveries\//, "school", "deliveries.receive"],
   ["*", /^\/school\/collection\//, "school", "collection.handout"],
   ["*", /^\/school\/settings\//, "school", "settings.manage"],
+  ["*", /^\/school\/students\//, "school", "settings.manage"],
   ["*", /^\/school\/staff\//, "school", "staff.manage"],
   ["post", /^\/publisher\/batches\/[^/]+\/dispatch\/$/, "publisher", "dispatch.manage"],
   ["get", /^\/publisher\/batches\/$/, "publisher", "orders.view"],
@@ -129,6 +299,12 @@ const guards: Array<[method: string, path: RegExp, orgType: OrgType, permission:
   ["*", /^\/publisher\/settings\//, "publisher", "settings.manage"],
   ["*", /^\/publisher\/staff\//, "publisher", "staff.manage"],
   ["get", /^\/admin\/overview\/$/, "platform", "overview.view"],
+  ["get", /^\/admin\/organisations\//, "platform", "orgs.view"],
+  ["post", /^\/admin\/orders\/[^/]+\/(refund|resolve)\/$/, "platform", "refunds.approve"],
+  ["get", /^\/admin\/(money|collections)\//, "platform", "money.view"],
+  ["post", /^\/admin\/(payouts|payout-accounts)\//, "platform", "payouts.release"],
+  ["*", /^\/admin\/orders\//, "platform", "orders.view"],
+  ["post", /^\/admin\/organisations\//, "platform", "orgs.verify"],
   ["*", /^\/admin\/staff\//, "platform", "staff.manage"],
 ]
 
@@ -318,7 +494,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
 
   ["get", "/schools/", ({ query }) => {
     const q = (query.search ?? "").toLowerCase()
-    const results = db.schools.filter((s) => `${s.name} ${s.town}`.toLowerCase().includes(q))
+    const results = db.schools.filter((s) => adminOrgs.get(s.id)?.status !== "suspended" && `${s.name} ${s.town}`.toLowerCase().includes(q))
     return { count: results.length, next: null, previous: null, results }
   }],
   ["get", "/schools/:slug/", ({ params }) => db.schools.find((s) => s.slug === params.slug) ?? raise(notFound())],
@@ -637,6 +813,235 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   }],
   ["get", "/school/orders/", () => ({ termName: db.schoolOverview.termName, orderDeadline: db.schoolOverview.orderDeadline, rows: schoolRows })],
   ["get", "/school/orders/:id/", ({ params }) => schoolOrders.get(params.id) ?? raise(notFound())],
+  ["get", "/admin/money/", () => money()],
+  ["get", "/admin/collections/", (): Collection[] =>
+    allOrders()
+      .flatMap((o) => orderExtra(o).payments.map((p) => ({ id: p.id, at: p.at, orderId: o.id, orderNumber: o.number, schoolName: o.schoolName, phone: display(p.phone)!, amountCents: p.amountCents, receipt: p.receipt, status: p.status })))
+      .sort((a, b) => b.at.localeCompare(a.at))],
+  ["post", "/admin/payouts/release/", ({ body, userId }) => {
+    const ids = (body.ids as string[]) ?? []
+    if (!ids.length) throw new HttpError(400, { ids: ["Choose the payouts to release."] })
+    const blocked = ids.map(findPayout).filter((p) => p.status !== "queued" || accountFor(publisherOf(p.id)).status !== "verified")
+    if (blocked.length) throw new HttpError(409, { detail: `Can't release ${blocked.map((p) => p.deliveryNoteNo).join(", ")}: not ready or the payout account isn't verified.` })
+    for (const id of ids) {
+      const p = findPayout(id)
+      Object.assign(p, { status: "paid", paidAt: stamp(), reference: "QK" + Math.random().toString(36).slice(2, 10).toUpperCase() })
+      logPayout(id, userId, `released ${formatKes(p.netCents)} to ${accountFor(publisherOf(id)).masked} · ${p.reference}`)
+    }
+    return money()
+  }],
+  ["post", "/admin/payouts/:id/hold/", ({ params, body, userId }) => {
+    const p = findPayout(params.id)
+    if (p.status !== "queued" && p.status !== "held") throw new HttpError(409, { detail: "Only payouts that haven't gone out can be held." })
+    const reason = String(body.reason ?? "").trim()
+    if (!reason) throw new HttpError(400, { reason: ["Give the reason. The publisher sees it."] })
+    p.status = "on_hold"
+    payoutNote(p).holdReason = reason
+    logPayout(p.id, userId, `put the payout on hold: "${reason}"`)
+    return money()
+  }],
+  ["post", "/admin/payouts/:id/unhold/", ({ params, body, userId }) => {
+    const p = findPayout(params.id)
+    if (p.status !== "on_hold") throw new HttpError(409, { detail: "This payout isn't on hold." })
+    p.status = p.receivedAt ? "queued" : "held"
+    payoutNote(p).holdReason = null
+    const note = String(body.note ?? "").trim()
+    logPayout(p.id, userId, `took the hold off${note ? `: "${note}"` : ""}`)
+    return money()
+  }],
+  ["post", "/admin/payout-accounts/:publisherId/verify/", ({ params, userId }) => {
+    const account = params.publisherId === "pub-longhorn" ? payouts.account : (publisherAccounts[params.publisherId] ?? raise(notFound())).account
+    if (account.status === "verified") throw new HttpError(409, { detail: "This account is already verified." })
+    account.status = "verified"
+    for (const p of adminPayouts().filter((x) => x.publisherId === params.publisherId && x.status !== "paid")) logPayout(p.id, userId, `confirmed the new payout account ${account.masked}`)
+    return money()
+  }],
+  ["get", "/admin/orders/", () => allOrders().map(adminOrderSummary).sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
+  ["get", "/admin/orders/:id/", ({ params }) => adminOrder(findOrder(params.id))],
+  ["post", "/admin/orders/:id/check-payment/", ({ params, userId }) => {
+    const o = findOrder(params.id)
+    const x = orderExtra(o)
+    const p = x.payments.find((pay) => pay.status === "unconfirmed")
+    if (!p) throw new HttpError(409, { detail: "There's no payment waiting on M-Pesa for this order." })
+    if (x.confirmsOnCheck) {
+      Object.assign(p, { status: "succeeded", receipt: "QK" + hash(o.id + "r").toString(36).toUpperCase().slice(0, 8) })
+      Object.assign(o, { status: "paid", paidAt: p.at, mpesaReceipt: p.receipt, collectionCode: String(1000 + (hash(o.id) % 9000)), expectedAtSchool: "2027-01-22" })
+      logOrder(o, userId, `checked with M-Pesa: paid, receipt ${p.receipt}. The parent was sent their collection code.`)
+    } else {
+      Object.assign(p, { status: "failed", failureReason: "The parent cancelled on their phone" })
+      o.status = "payment_failed"
+      logOrder(o, userId, "checked with M-Pesa: not paid. The parent was told they can try again.")
+    }
+    Object.assign(x, { issue: null, issueDetail: null })
+    syncSchoolRow(o)
+    return adminOrder(o)
+  }],
+  ["post", "/admin/orders/:id/resend-code/", ({ params, userId }) => {
+    const o = findOrder(params.id)
+    if (!o.collectionCode || o.status === "collected" || o.status === "refunded") throw new HttpError(409, { detail: "This order has no collection code to send." })
+    logOrder(o, userId, `resent the collection code to ${display(orderExtra(o).parentPhone) ?? "the parent"}`)
+    return adminOrder(o)
+  }],
+  ["post", "/admin/orders/:id/note/", ({ params, body, userId }) => {
+    const o = findOrder(params.id)
+    const note = String(body.note ?? "").trim()
+    if (!note) throw new HttpError(400, { note: ["Write the note first."] })
+    logOrder(o, userId, `noted: "${note}"`)
+    return adminOrder(o)
+  }],
+  ["post", "/admin/orders/:id/refund/", ({ params, body, userId }) => {
+    const o = findOrder(params.id)
+    const x = orderExtra(o)
+    if (!o.paidAt) throw new HttpError(409, { detail: "Nothing has been paid on this order." })
+    const ids = new Set((body.itemIds as string[]) ?? [])
+    const lines = o.items.filter((i) => ids.has(i.id) && i.status !== "refunded")
+    if (!lines.length) throw new HttpError(400, { itemIds: ["Choose what to refund."] })
+    const reason = String(body.reason ?? "").trim()
+    if (!reason) throw new HttpError(400, { reason: ["Give the reason. The parent sees it."] })
+    for (const i of lines) i.status = "refunded"
+    const amount = lines.reduce((t, i) => t + i.unitPriceCents * i.qty, 0)
+    o.status = o.items.every((i) => i.status === "refunded") ? "refunded" : "partially_refunded"
+    if (x.issue === "refund_due" || x.issue === "short_delivery") Object.assign(x, { issue: null, issueDetail: null })
+    logOrder(o, userId, `refunded KES ${(amount / 100).toLocaleString("en-KE")} to ${display(x.parentPhone) ?? "the parent"} for ${lines.map((i) => i.title).join(", ")}: "${reason}"`)
+    syncSchoolRow(o)
+    return adminOrder(o)
+  }],
+  ["post", "/admin/orders/:id/resolve/", ({ params, body, userId }) => {
+    const o = findOrder(params.id)
+    const x = orderExtra(o)
+    if (!x.issue) throw new HttpError(409, { detail: "Nothing is open on this order." })
+    const note = String(body.note ?? "").trim()
+    if (!note) throw new HttpError(400, { note: ["Say how it was sorted out."] })
+    Object.assign(x, { issue: null, issueDetail: null })
+    logOrder(o, userId, `marked it sorted: "${note}"`)
+    return adminOrder(o)
+  }],
+  ["get", "/admin/organisations/", () => [...adminOrgs.values()].map(orgSummary)],
+  ["post", "/admin/organisations/invite/", ({ body }) => {
+    if (String(body.name ?? "").trim().length < 2) throw new HttpError(400, { name: ["Enter the organisation's name."] })
+    if (!String(body.contact ?? "").trim()) throw new HttpError(400, { contact: ["Enter a phone number or email."] })
+    return { sent: true }
+  }],
+  ["get", "/admin/organisations/:id/", ({ params }) => adminOrgs.get(params.id) ?? raise(notFound())],
+  ["post", "/admin/organisations/:id/checks/:checkId/", ({ params, body, userId }) => {
+    const org = adminOrgs.get(params.id) ?? raise(notFound())
+    const check = org.checks.find((c) => c.id === params.checkId) ?? raise(notFound())
+    if (check.state === "missing") throw new HttpError(400, { detail: "Nothing has been uploaded for this yet. Ask the applicant for it." })
+    check.state = body.state === "failed" ? "failed" : "verified"
+    logOrg(org, userId, `${check.state === "verified" ? "checked" : "flagged"} ${check.label}`)
+    org.openChecks = org.checks.filter((c) => c.state !== "verified").length
+    return org
+  }],
+  ["post", "/admin/organisations/:id/:decision/", ({ params, body, userId }) => {
+    const org = adminOrgs.get(params.id) ?? raise(notFound())
+    const note = String(body.note ?? "").trim()
+    const open = org.checks.filter((c) => c.state !== "verified")
+    switch (params.decision) {
+      case "approve":
+        if (!["pending", "info_requested"].includes(org.status)) throw new HttpError(409, { detail: "Only applications can be approved." })
+        if (open.length) throw new HttpError(400, { detail: `Still to check: ${open.map((c) => c.label).join(", ")}.` })
+        Object.assign(org, { status: "live", verifiedAt: new Date().toISOString().replace("Z", "+00:00") })
+        logOrg(org, userId, `approved ${org.name}${note ? `: "${note}"` : ""}`)
+        if (org.type === "school" && !db.schools.some((s) => s.id === org.id)) db.schools.push({ id: org.id, slug: org.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-$/, ""), name: org.name, town: org.town, county: org.county, verified: true })
+        break
+      case "request-info":
+        if (!["pending", "info_requested"].includes(org.status)) throw new HttpError(409, { detail: "Only applications can be asked for more information." })
+        if (!note) throw new HttpError(400, { note: ["Tell them what you need."] })
+        org.status = "info_requested"
+        logOrg(org, userId, `asked for more information: "${note}"`)
+        break
+      case "reject":
+        if (!["pending", "info_requested"].includes(org.status)) throw new HttpError(409, { detail: "Only applications can be rejected." })
+        if (!note) throw new HttpError(400, { note: ["Give the reason. The applicant sees it."] })
+        org.status = "rejected"
+        logOrg(org, userId, `rejected the application: "${note}"`)
+        break
+      case "suspend":
+        if (org.status !== "live") throw new HttpError(409, { detail: "Only live organisations can be paused." })
+        if (!note) throw new HttpError(400, { note: ["Give the reason. Their admins see it."] })
+        Object.assign(org, { status: "suspended", suspendedReason: note })
+        logOrg(org, userId, `paused ${org.name}: "${note}"`)
+        break
+      case "reactivate":
+        if (org.status !== "suspended") throw new HttpError(409, { detail: "This organisation isn't paused." })
+        Object.assign(org, { status: "live", suspendedReason: null })
+        logOrg(org, userId, `turned ${org.name} back on${note ? `: "${note}"` : ""}`)
+        break
+      default:
+        throw notFound()
+    }
+    return org
+  }],
+  ["get", "/school/students/", () => {
+    const teachers = directories.school.members.filter((m) => m.role === "teacher" && m.status !== "suspended")
+    return {
+      joinCode: "GRN-2027",
+      classes: allClasses().map(({ className, gradeName }) => {
+        const inClass = schoolRows.filter((r) => r.className === className)
+        return {
+          className,
+          gradeName,
+          teacher: teachers.find((t) => t.classNames.includes(className))?.name ?? null,
+          students: inClass.length,
+          linked: inClass.filter((r) => linked.has(r.studentId)).length,
+        }
+      }),
+      students: schoolRows.map(studentView),
+    }
+  }],
+  ["post", "/school/students/", ({ body }) => studentView(createStudent(body))],
+  ["patch", "/school/students/:id/", ({ params, body }) => {
+    const row = schoolRows.find((r) => r.studentId === params.id) ?? raise(notFound())
+    if (body.name !== undefined) {
+      const name = String(body.name).trim()
+      if (name.length < 2) throw new HttpError(400, { name: ["Enter the student's full name."] })
+      row.studentName = name
+    }
+    if (body.className !== undefined) {
+      const cls = allClasses().find((c) => c.className === body.className) ?? raise(new HttpError(400, { className: ["Choose a class."] }))
+      if (row.order && cls.gradeName !== row.gradeName && !["pending_payment", "payment_failed"].includes(row.order.status))
+        throw new HttpError(409, { className: [`${row.studentName} already has a paid ${row.gradeName} order. Move them within ${row.gradeName}, or ask SchoolShop support.`] })
+      Object.assign(row, { className: cls.className, gradeName: cls.gradeName })
+    }
+    if (body.parentName !== undefined) row.parentName = body.parentName ? String(body.parentName).trim() : null
+    if (body.parentPhone !== undefined && body.parentPhone !== null) {
+      const phone = String(body.parentPhone)
+      if (!/^254[17]\d{8}$/.test(phone)) throw new HttpError(400, { parentPhone: ["Enter a Kenyan mobile number."] })
+      row.parentPhone = mask(phone)
+    }
+    return studentView(row)
+  }],
+  ["delete", "/school/students/:id/", ({ params }) => {
+    const row = schoolRows.find((r) => r.studentId === params.id) ?? raise(notFound())
+    if (row.order && !["pending_payment", "payment_failed"].includes(row.order.status)) throw new HttpError(409, { detail: `${row.studentName} has a paid order. Mark them as left once it's collected.` })
+    schoolRows.splice(schoolRows.indexOf(row), 1)
+    return null
+  }],
+  ["post", "/school/students/import/", ({ body }) => {
+    const rows = (body.rows as Record<string, string | null>[] | undefined) ?? []
+    if (rows.length === 0) throw new HttpError(400, { rows: ["The file has no students in it."] })
+    if (rows.length > 2000) throw new HttpError(400, { rows: ["Import at most 2,000 students at a time."] })
+    const errors: { line: number; message: string }[] = []
+    const seen = new Set<string>()
+    const ok: Record<string, string | null>[] = []
+    rows.forEach((r, i) => {
+      const line = i + 2 // line 1 is the header
+      const adm = String(r.admissionNo ?? "").trim().toUpperCase()
+      if (String(r.name ?? "").trim().length < 2) return errors.push({ line, message: "Name is missing" })
+      if (!adm) return errors.push({ line, message: "Admission number is missing" })
+      if (seen.has(adm) || schoolRows.some((x) => x.admissionNo === adm)) return errors.push({ line, message: `${adm} is already on the roll` })
+      if (!allClasses().some((c) => c.className === r.className)) return errors.push({ line, message: `"${r.className ?? ""}" isn't a class at this school` })
+      if (r.parentPhone && !/^254[17]\d{8}$/.test(String(r.parentPhone))) return errors.push({ line, message: "Parent phone isn't a Kenyan mobile number" })
+      seen.add(adm)
+      ok.push(r)
+    })
+    if (!body.dryRun) ok.forEach((r) => createStudent(r))
+    return { valid: ok.length, created: body.dryRun ? 0 : ok.length, errors }
+  }],
+  ["post", "/school/students/invite/", ({ body }) => {
+    const targets = schoolRows.filter((r) => r.parentPhone && !linked.has(r.studentId) && (!body.className || r.className === body.className))
+    return { sent: targets.length }
+  }],
   ["post", "/school/orders/remind/", ({ body }) => {
     const ids = new Set((body.studentIds as string[] | undefined) ?? [])
     if (ids.size === 0) throw new HttpError(400, { studentIds: ["Choose at least one student."] })
@@ -709,7 +1114,25 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     Object.assign(item, body, { isbn })
     return item
   }],
-  ["get", "/admin/overview/", () => db.adminOverview],
+  ["get", "/admin/overview/", () => {
+    const orgs = [...adminOrgs.values()]
+    const live = (t: string) => orgs.filter((o) => o.type === t && o.status === "live").length
+    const waiting = (t: string) => orgs.filter((o) => o.type === t && (o.status === "pending" || o.status === "info_requested")).length
+    const [schools, publishers] = [waiting("school"), waiting("publisher")]
+    const alerts = db.adminOverview.alerts.filter((a) => a.href !== "/admin/organisations" && !a.href.startsWith("/admin/orders"))
+    const open = allOrders().filter((o) => orderExtra(o).issue)
+    const byIssue = (i: string) => open.filter((o) => orderExtra(o).issue === i)
+    const [unconfirmed, short, refunds] = [byIssue("payment_unconfirmed"), byIssue("short_delivery"), byIssue("refund_due")]
+    const href = "/admin/orders?show=attention"
+    if (refunds.length) alerts.unshift({ id: "al-5", severity: "info", title: `${refunds.length} refund${refunds.length === 1 ? "" : "s"} to approve`, detail: `Out-of-stock lines, KES ${(refunds.reduce((t, o) => t + o.items.filter((i) => i.status === "unavailable").reduce((s2, i) => s2 + i.unitPriceCents * i.qty, 0), 0) / 100).toLocaleString("en-KE")}`, href })
+    if (short.length) alerts.unshift({ id: "al-4", severity: "medium", title: "1 short-delivery dispute", detail: `${short[0].schoolName} · Moran · ${short.length} pack${short.length === 1 ? "" : "s"}`, href })
+    if (unconfirmed.length) alerts.unshift({ id: "al-3", severity: "medium", title: `${unconfirmed.length} M-Pesa payment${unconfirmed.length === 1 ? "" : "s"} not confirmed`, detail: "No callback after 2 minutes, status check queued", href })
+    if (publishers) alerts.unshift({ id: "al-2", severity: "high", title: `${publishers} publisher application${publishers === 1 ? "" : "s"}`, detail: "Documents uploaded", href: "/admin/organisations" })
+    if (schools) alerts.unshift({ id: "al-1", severity: "high", title: `${schools} school${schools === 1 ? "" : "s"} waiting for verification`, detail: "Oldest: 4 days ago", href: "/admin/organisations" })
+    const rank = { high: 0, medium: 1, info: 2 }
+    alerts.sort((x, y) => rank[x.severity] - rank[y.severity])
+    return { ...db.adminOverview, liveSchools: live("school"), livePublishers: live("publisher"), alerts }
+  }],
 ]
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`

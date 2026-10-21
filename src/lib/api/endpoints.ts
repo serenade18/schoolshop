@@ -4,6 +4,12 @@ import { api } from "@/lib/api/client"
 import type { PublisherSettings, SchoolSettings } from "@/lib/api/schemas"
 import {
   accountSchema,
+  adminMoneySchema,
+  adminOrderSchema,
+  collectionSchema,
+  adminOrderSummarySchema,
+  adminOrgSchema,
+  adminOrgSummarySchema,
   adminOverviewSchema,
   authTokensSchema,
   booklistSchema,
@@ -29,7 +35,10 @@ import {
   schoolOrdersSchema,
   schoolOverviewSchema,
   schoolSchema,
+  classRosterSchema,
   schoolSettingsSchema,
+  studentImportResultSchema,
+  studentSchema,
   staffDirectorySchema,
   userSchema,
 } from "@/lib/api/schemas"
@@ -148,6 +157,23 @@ export const saveBooklist = async (id: string, input: BooklistInput) => {
 export const publishBooklist = (id: string) => post(`/school/booklists/${id}/publish/`, booklistSchema)
 export const searchSchoolCatalog = (search: string, category: string) =>
   get("/school/catalog/", z.array(schoolCatalogItemSchema), { search, category })
+export const getRoster = () => get("/school/students/", classRosterSchema)
+export type StudentInput = { name: string; admissionNo: string; className: string; parentName: string | null; parentPhone: string | null }
+export const addStudent = (input: StudentInput) => post("/school/students/", studentSchema, input)
+/** Leave parentPhone out to keep the number on file. */
+export const updateStudent = async (id: string, input: Partial<StudentInput>) => {
+  const { data } = await api.patch(`/school/students/${id}/`, input)
+  return studentSchema.parse(data)
+}
+export const removeStudent = async (id: string) => {
+  await api.delete(`/school/students/${id}/`)
+}
+/** Check rows first with dryRun, then import the valid ones. */
+export const importStudents = (rows: Omit<StudentInput, "parentName">[], dryRun: boolean) =>
+  post("/school/students/import/", studentImportResultSchema, { rows, dryRun })
+/** SMS the school code to parents with a phone on file who haven't linked their child yet. */
+export const inviteParents = (className: string | null) => post("/school/students/invite/", z.object({ sent: z.number().int() }), { className })
+
 export const listCollection = () => get("/school/collection/", z.array(collectionRowSchema))
 /** Hand over a pack: the code the student or parent reads out must match an order in this class. */
 export const handOverPack = (input: { className: string; code: string }) =>
@@ -236,6 +262,33 @@ export const changePassword = (input: { currentPassword: string; newPassword: st
 
 // Platform admin
 export const getAdminOverview = () => get("/admin/overview/", adminOverviewSchema)
+export const getAdminMoney = () => get("/admin/money/", adminMoneySchema)
+export const listCollections = () => get("/admin/collections/", z.array(collectionSchema))
+/** Sends the money. Only approved payouts to a verified account go. */
+export const releasePayouts = (ids: string[]) => post("/admin/payouts/release/", adminMoneySchema, { ids })
+export const holdPayout = (id: string, reason: string) => post(`/admin/payouts/${id}/hold/`, adminMoneySchema, { reason })
+export const unholdPayout = (id: string, note: string) => post(`/admin/payouts/${id}/unhold/`, adminMoneySchema, { note })
+/** Confirms a publisher's new payout account after calling them on the number we already had. */
+export const verifyPayoutAccount = (publisherId: string) => post(`/admin/payout-accounts/${publisherId}/verify/`, adminMoneySchema, {})
+export const listAdminOrders = () => get("/admin/orders/", z.array(adminOrderSummarySchema))
+export const getAdminOrder = (id: string) => get(`/admin/orders/${id}/`, adminOrderSchema)
+/** Ask M-Pesa for the result of a payment whose callback never arrived. */
+export const checkOrderPayment = (id: string) => post(`/admin/orders/${id}/check-payment/`, adminOrderSchema, {})
+export const resendOrderCode = (id: string) => post(`/admin/orders/${id}/resend-code/`, adminOrderSchema, {})
+export const addOrderNote = (id: string, note: string) => post(`/admin/orders/${id}/note/`, adminOrderSchema, { note })
+/** Refunds go back to the M-Pesa number that paid. */
+export const refundOrderItems = (id: string, itemIds: string[], reason: string) => post(`/admin/orders/${id}/refund/`, adminOrderSchema, { itemIds, reason })
+export const resolveOrderIssue = (id: string, note: string) => post(`/admin/orders/${id}/resolve/`, adminOrderSchema, { note })
+export const listAdminOrgs = () => get("/admin/organisations/", z.array(adminOrgSummarySchema))
+export const getAdminOrg = (id: string) => get(`/admin/organisations/${id}/`, adminOrgSchema)
+export type OrgDecision = "approve" | "request-info" | "reject" | "suspend" | "reactivate"
+/** Every decision is logged and the organisation's contact gets the note by SMS and email. */
+export const decideOrg = (id: string, decision: OrgDecision, note: string) =>
+  post(`/admin/organisations/${id}/${decision}/`, adminOrgSchema, { note })
+export const setOrgCheck = (id: string, checkId: string, state: "verified" | "failed") =>
+  post(`/admin/organisations/${id}/checks/${checkId}/`, adminOrgSchema, { state })
+export const inviteOrg = (input: { type: "school" | "publisher"; name: string; contact: string }) =>
+  post("/admin/organisations/invite/", z.object({ sent: z.boolean() }), input)
 
 // Staff and roles, the same shape for schools, publishers and SchoolShop itself.
 export type StaffScope = "school" | "publisher" | "admin"

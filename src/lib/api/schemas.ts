@@ -439,6 +439,38 @@ export const payoutSchema = z.object({
 })
 export type Payout = z.infer<typeof payoutSchema>
 
+/** A publisher's payout as SchoolShop finance sees it, across every publisher. */
+export const adminPayoutSchema = payoutSchema.extend({
+  publisherId: z.string(),
+  publisherName: z.string(),
+  account: payoutAccountSchema,
+  packs: z.number().int(),
+  holdReason: z.string().nullable(),
+  events: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+})
+export type AdminPayout = z.infer<typeof adminPayoutSchema>
+
+export const adminMoneySchema = z.object({
+  termName: z.string(),
+  commissionRate: z.number(),
+  payouts: z.array(adminPayoutSchema),
+})
+export type AdminMoney = z.infer<typeof adminMoneySchema>
+
+/** One M-Pesa payment from a parent, for reconciling against the Paybill statement. */
+export const collectionSchema = z.object({
+  id: z.string(),
+  at: isoDateTime,
+  orderId: z.string(),
+  orderNumber: z.string(),
+  schoolName: z.string(),
+  phone: z.string(),
+  amountCents: cents,
+  receipt: z.string().nullable(),
+  status: z.enum(["succeeded", "failed", "unconfirmed"]),
+})
+export type Collection = z.infer<typeof collectionSchema>
+
 export const publisherPayoutsSchema = z.object({
   commissionRate: z.number().min(0).max(1),
   account: payoutAccountSchema,
@@ -524,6 +556,36 @@ export const accountSchema = z.object({
 })
 export type Account = z.infer<typeof accountSchema>
 
+export const studentSchema = z.object({
+  studentId: z.string(),
+  name: z.string(),
+  admissionNo: z.string(),
+  gradeName: z.string(),
+  className: z.string(),
+  parentName: z.string().nullable(),
+  /** Masked once saved: the school typed it in, but staff screens never show it in full. */
+  parentPhone: z.string().nullable(),
+  /** A parent has linked this child on SchoolShop with the school code. */
+  parentLinked: z.boolean(),
+  hasOrder: z.boolean(),
+})
+export type Student = z.infer<typeof studentSchema>
+
+export const classRosterSchema = z.object({
+  /** Parents enter this to link their children. */
+  joinCode: z.string(),
+  classes: z.array(z.object({ className: z.string(), gradeName: z.string(), teacher: z.string().nullable(), students: z.number().int(), linked: z.number().int() })),
+  students: z.array(studentSchema),
+})
+export type ClassRoster = z.infer<typeof classRosterSchema>
+
+export const studentImportResultSchema = z.object({
+  valid: z.number().int(),
+  created: z.number().int(),
+  errors: z.array(z.object({ line: z.number().int(), message: z.string() })),
+})
+export type StudentImportResult = z.infer<typeof studentImportResultSchema>
+
 export const staffMemberSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -545,6 +607,96 @@ export const staffDirectorySchema = z.object({
   classNames: z.array(z.string()),
 })
 export type StaffDirectory = z.infer<typeof staffDirectorySchema>
+
+/** Why an order needs someone at SchoolShop to look at it. */
+export const orderIssueSchema = z.enum(["payment_unconfirmed", "short_delivery", "refund_due"])
+export type OrderIssue = z.infer<typeof orderIssueSchema>
+
+export const adminOrderSummarySchema = z.object({
+  id: z.string(),
+  number: z.string(),
+  status: orderStatusSchema,
+  studentName: z.string(),
+  className: z.string(),
+  schoolId: z.string(),
+  schoolName: z.string(),
+  parentName: z.string().nullable(),
+  /** Admins see the full number so support can find a parent who calls in. */
+  parentPhone: z.string().nullable(),
+  totalCents: cents,
+  refundedCents: cents,
+  createdAt: isoDateTime,
+  mpesaReceipt: z.string().nullable(),
+  issue: orderIssueSchema.nullable(),
+})
+export type AdminOrderSummary = z.infer<typeof adminOrderSummarySchema>
+
+export const adminOrderSchema = orderSchema.extend({
+  schoolId: z.string(),
+  admissionNo: z.string().nullable(),
+  parentName: z.string().nullable(),
+  parentPhone: z.string().nullable(),
+  createdAt: isoDateTime,
+  refundedCents: cents,
+  issue: orderIssueSchema.nullable(),
+  issueDetail: z.string().nullable(),
+  payments: z.array(
+    z.object({
+      id: z.string(),
+      at: isoDateTime,
+      phone: z.string(),
+      amountCents: cents,
+      /** unconfirmed: STK push sent, no callback from M-Pesa yet. */
+      status: z.enum(["succeeded", "failed", "unconfirmed"]),
+      receipt: z.string().nullable(),
+      failureReason: z.string().nullable(),
+    })
+  ),
+  events: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+})
+export type AdminOrder = z.infer<typeof adminOrderSchema>
+
+export const orgStatusSchema = z.enum(["pending", "info_requested", "live", "suspended", "rejected"])
+export type OrgStatus = z.infer<typeof orgStatusSchema>
+
+export const adminOrgSummarySchema = z.object({
+  id: z.string(),
+  type: z.enum(["school", "publisher"]),
+  name: z.string(),
+  town: z.string(),
+  county: z.string(),
+  status: orgStatusSchema,
+  appliedAt: isoDateTime,
+  /** Checks still open, for applications. */
+  openChecks: z.number().int(),
+})
+export type AdminOrgSummary = z.infer<typeof adminOrgSummarySchema>
+
+export const orgCheckSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  /** verified: someone at SchoolShop checked it; uploaded: waiting to be checked; missing: not sent yet. */
+  state: z.enum(["verified", "uploaded", "missing", "failed"]),
+  fileName: z.string().nullable(),
+  uploadedAt: isoDateTime.nullable(),
+})
+export type OrgCheck = z.infer<typeof orgCheckSchema>
+
+export const adminOrgSchema = adminOrgSummarySchema.extend({
+  contactName: z.string(),
+  contactPhone: z.string(),
+  contactEmail: z.string().nullable(),
+  /** Ministry of Education number for schools, company registration for publishers. */
+  registrationNo: z.string().nullable(),
+  kraPin: z.string().nullable(),
+  verifiedAt: isoDateTime.nullable(),
+  suspendedReason: z.string().nullable(),
+  checks: z.array(orgCheckSchema),
+  /** Live organisations: this term at a glance. */
+  stats: z.array(z.object({ label: z.string(), value: z.string() })),
+  history: z.array(z.object({ id: z.string(), at: isoDateTime, actor: z.string(), text: z.string() })),
+})
+export type AdminOrg = z.infer<typeof adminOrgSchema>
 
 export const adminOverviewSchema = z.object({
   termName: z.string(),
