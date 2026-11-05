@@ -87,6 +87,7 @@ export function PublisherCatalogPage() {
 function Catalog({ items }: { items: CatalogItem[] }) {
   const [filter, setFilter] = useState<"all" | StockState>("all")
   const [band, setBand] = useState("all")
+  const [cover, setCover] = useState<"all" | "with" | "without">("all")
   const [search, setSearch] = useState("")
   const [editing, setEditing] = useState<CatalogItem | "new" | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -101,11 +102,14 @@ function Catalog({ items }: { items: CatalogItem[] }) {
     return c
   }, [items])
 
+  const withCover = items.filter((i) => i.coverUrl).length
+
   const q = search.trim().toLowerCase()
   const shown = items.filter(
     (i) =>
       (filter === "all" || stockState(i) === filter) &&
       (band === "all" || i.gradeBand === band) &&
+      (cover === "all" || (cover === "with") === !!i.coverUrl) &&
       (!q || i.title.toLowerCase().includes(q) || (i.isbn ?? "").replace(/-/g, "").includes(q.replace(/-/g, "")))
   )
 
@@ -185,6 +189,13 @@ function Catalog({ items }: { items: CatalogItem[] }) {
               {bandFilters.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
+            </NativeSelect>
+          </div>
+          <div className="w-full sm:w-52">
+            <NativeSelect aria-label="Cover" value={cover} onChange={(e) => setCover(e.target.value as typeof cover)}>
+              <option value="all">All covers</option>
+              <option value="with">With cover ({withCover})</option>
+              <option value="without">No cover ({items.length - withCover})</option>
             </NativeSelect>
           </div>
         </div>
