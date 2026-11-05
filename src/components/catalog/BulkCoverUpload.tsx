@@ -47,7 +47,9 @@ function matchPhotos(files: File[], items: CatalogItem[]) {
 /**
  * Covers for many products at once. Nothing uploads until the publisher has seen
  * what matched. Products that already have a cover keep it unless they say
- * otherwise, so running it again after a failure only fills the gaps.
+ * otherwise, so running it again after a failure only fills the gaps. They can
+ * also publish these products: only the ones that end up with a cover go live,
+ * and every other draft in the catalog stays a draft.
  */
 export function BulkCoverUpload({ items }: { items: CatalogItem[] }) {
   const input = useRef<HTMLInputElement>(null)
@@ -56,10 +58,13 @@ export function BulkCoverUpload({ items }: { items: CatalogItem[] }) {
   const [files, setFiles] = useState<File[] | null>(null)
   const [replace, setReplace] = useState(false)
   const [done, setDone] = useState(0)
+  const [publish, setPublish] = useState(false)
+  const [publishing, setPublishing] = useState(false)
 
   const { matches, skipped } = useMemo(() => matchPhotos(files ?? [], items), [files, items])
   const withCover = matches.filter((m) => m.item.coverUrl).length
   const jobs = replace ? matches : matches.filter((m) => !m.item.coverUrl)
+  const drafts = matches.filter((m) => m.item.status === "draft").length
   const result = run.data
 
   const close = () => {
@@ -67,15 +72,22 @@ export function BulkCoverUpload({ items }: { items: CatalogItem[] }) {
     setFiles(null)
     setReplace(false)
     setDone(0)
+    setPublish(false)
+    setPublishing(false)
     run.reset()
   }
   const start = () => {
     stop.current = false
     setDone(0)
+    setPublishing(false)
     run.mutate({
       jobs: jobs.map((m) => ({ id: m.item.id, file: m.file })),
       onProgress: setDone,
       shouldStop: () => stop.current,
+      publish,
+      // Replacing a cover can fail, but the product still has its old one.
+      alreadyCovered: matches.filter((m) => m.item.coverUrl).map((m) => m.item.id),
+      onPublishing: () => setPublishing(true),
     })
   }
 
@@ -104,21 +116,26 @@ export function BulkCoverUpload({ items }: { items: CatalogItem[] }) {
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/40" />
           <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[85dvh] w-[min(600px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-3xl bg-surface p-6 outline-none">
-            <Dialog.Title className="font-display text-xl font-semibold">{result ? "Photos uploaded" : run.isPending ? "Uploading photos…" : "Upload product photos"}</Dialog.Title>
+            <Dialog.Title className="font-display text-xl font-semibold">{result ? "Finished" : publishing ? "Publishing…" : run.isPending ? "Uploading photos…" : "Upload product photos"}</Dialog.Title>
 
             {result ? (
               <>
                 <Dialog.Description className="text-sm text-muted-foreground">
-                  Added {plural(result.uploaded, "photo")}.
+                  {result.uploaded > 0 && `Added ${plural(result.uploaded, "photo")}.`}
                   {result.failed.length > 0 && ` ${plural(result.failed.length, "photo")} couldn't be used.`}
                   {result.stopped > 0 && ` Stopped with ${result.stopped} still to go.`}
+                  {result.published && ` Published ${plural(result.published.count, "product")}.`}
+                  {result.published && result.published.notSent > 0 && ` ${plural(result.published.notSent, "product")} weren't published. Upload the same photos again to retry.`}
                 </Dialog.Description>
                 <Problems title="Not uploaded" rows={result.failed} />
+                <Problems title="Not published" rows={result.published?.blocked ?? []} />
               </>
             ) : run.isPending ? (
               <>
-                <Dialog.Description className="text-sm text-muted-foreground">{done} of {jobs.length} done. Keep this page open.</Dialog.Description>
-                <progress className="w-full accent-ink" value={done} max={jobs.length} aria-label="Upload progress" />
+                <Dialog.Description className="text-sm text-muted-foreground">
+                  {publishing ? "Publishing the products with a cover." : `${done} of ${jobs.length} done.`} Keep this page open.
+                </Dialog.Description>
+                {!publishing && <progress className="w-full accent-ink" value={done} max={jobs.length} aria-label="Upload progress" />}
               </>
             ) : (
               <>
@@ -141,6 +158,15 @@ export function BulkCoverUpload({ items }: { items: CatalogItem[] }) {
                     Replace the cover on {plural(withCover, "product")} that already {withCover === 1 ? "has" : "have"} one
                   </label>
                 )}
+                {drafts > 0 && (
+                  <label className="flex items-start gap-2 text-sm">
+                    <Checkbox className="mt-0.5" checked={publish} onCheckedChange={(v) => setPublish(v === true)} />
+                    <span className="flex flex-col gap-0.5">
+                      Publish the products in this list that have a cover
+                      <span className="text-xs text-muted-foreground">If a photo is refused, that product stays a draft unless it already has a cover. Your other drafts aren't touched.</span>
+                    </span>
+                  </label>
+                )}
                 <Problems title="Left out" rows={skipped} />
               </>
             )}
@@ -155,7 +181,9 @@ export function BulkCoverUpload({ items }: { items: CatalogItem[] }) {
               ) : (
                 <>
                   <Button variant="outline" className="grow" onClick={close}>Cancel</Button>
-                  <Button className="grow" onClick={start} disabled={jobs.length === 0}>Upload {plural(jobs.length, "photo")}</Button>
+                  <Button className="grow" onClick={start} disabled={jobs.length === 0 && !(publish && drafts > 0)}>
+                    {jobs.length === 0 && publish ? `Publish ${plural(drafts, "product")}` : `Upload ${plural(jobs.length, "photo")}${publish ? " and publish" : ""}`}
+                  </Button>
                 </>
               )}
             </div>

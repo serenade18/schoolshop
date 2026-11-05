@@ -408,23 +408,56 @@ export const useCatalogUploads = () => {
   }
 }
 
-/** Covers for many products, one at a time. A photo that's refused doesn't stop the rest; the catalog refreshes once at the end. */
+const PUBLISH_BATCH = 50
+
+/**
+ * Covers for many products, one at a time. A photo that's refused doesn't stop the rest; the catalog refreshes once at the end.
+ * With publish on, the uploaded products and alreadyCovered are then published in small batches, so a long list can't time out in one request.
+ */
 export const useBulkCoverUpload = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ jobs, onProgress, shouldStop }: { jobs: { id: string; file: File }[]; onProgress: (done: number) => void; shouldStop: () => boolean }) => {
+    mutationFn: async ({ jobs, onProgress, shouldStop, publish, alreadyCovered, onPublishing }: {
+      jobs: { id: string; file: File }[]
+      onProgress: (done: number) => void
+      shouldStop: () => boolean
+      publish: boolean
+      alreadyCovered: string[]
+      onPublishing: () => void
+    }) => {
       const failed: { name: string; reason: string }[] = []
+      const covered = new Set(alreadyCovered)
       let done = 0
       for (const { id, file } of jobs) {
         if (shouldStop()) break
         try {
           await endpoints.uploadCover(id, file)
+          covered.add(id)
         } catch (e) {
           failed.push({ name: file.name, reason: e instanceof ApiError ? (e.fieldErrors.file?.[0] ?? e.message) : "It didn't upload. Try this one again." })
         }
         onProgress(++done)
       }
-      return { uploaded: done - failed.length, failed, stopped: jobs.length - done }
+      const published = { count: 0, blocked: [] as { name: string; reason: string }[], notSent: 0 }
+      if (publish) {
+        const ids = [...covered]
+        onPublishing()
+        for (let i = 0; i < ids.length; i += PUBLISH_BATCH) {
+          const batch = ids.slice(i, i + PUBLISH_BATCH)
+          if (shouldStop()) {
+            published.notSent = ids.length - i
+            break
+          }
+          try {
+            const r = await endpoints.publishCatalogItems(batch)
+            published.count += r.published
+            published.blocked.push(...r.blocked.map((b) => ({ name: b.title, reason: b.reason })))
+          } catch {
+            published.notSent += batch.length
+          }
+        }
+      }
+      return { uploaded: done - failed.length, failed, stopped: jobs.length - done, published: publish ? published : null }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }),
   })
