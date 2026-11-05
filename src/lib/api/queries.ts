@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { ApiError } from "@/lib/api/client"
 import * as endpoints from "@/lib/api/endpoints"
-import type { Account, AdminMoney, AdminRefunds, SettingsSection, AdminOrder, AdminOrg, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
+import type { Account, AdminMoney, AdminRefunds, SettingsSection, AdminOrder, AdminOrg, CatalogDeleteResult, CatalogPublishResult, CollectionRow, PublisherSettings, SchoolSettings, StaffDirectory } from "@/lib/api/schemas"
 import { useAuthStore } from "@/stores/auth"
 
 export const queryKeys = {
@@ -408,7 +408,9 @@ export const useCatalogUploads = () => {
   }
 }
 
-const PUBLISH_BATCH = 50
+/** Long selections go in small requests, so none runs long enough for the server to time it out. */
+const BATCH = 25
+const inBatches = (ids: string[]) => Array.from({ length: Math.ceil(ids.length / BATCH) }, (_, i) => ids.slice(i * BATCH, (i + 1) * BATCH))
 
 /**
  * Covers for many products, one at a time. A photo that's refused doesn't stop the rest; the catalog refreshes once at the end.
@@ -442,8 +444,8 @@ export const useBulkCoverUpload = () => {
       if (publish) {
         const ids = [...covered]
         onPublishing()
-        for (let i = 0; i < ids.length; i += PUBLISH_BATCH) {
-          const batch = ids.slice(i, i + PUBLISH_BATCH)
+        for (let i = 0; i < ids.length; i += BATCH) {
+          const batch = ids.slice(i, i + BATCH)
           if (shouldStop()) {
             published.notSent = ids.length - i
             break
@@ -465,7 +467,19 @@ export const useBulkCoverUpload = () => {
 
 export const useDeleteCatalogItems = () => {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: endpoints.deleteCatalogItems, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }) })
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const result: CatalogDeleteResult = { deleted: 0, kept: [] }
+      for (const batch of inBatches(ids)) {
+        const r = await endpoints.deleteCatalogItems(batch)
+        result.deleted += r.deleted
+        result.kept.push(...r.kept)
+      }
+      return result
+    },
+    // Settled, as batches before a failure have already gone through.
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }),
+  })
 }
 
 export const useAdminProducts = (search: string) =>
@@ -482,7 +496,19 @@ export function useAdminProductAction<V>(fn: (vars: V) => Promise<unknown>) {
 
 export const usePublishCatalogItems = () => {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: endpoints.publishCatalogItems, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }) })
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const result: CatalogPublishResult = { published: 0, unchanged: 0, blocked: [] }
+      for (const batch of inBatches(ids)) {
+        const r = await endpoints.publishCatalogItems(batch)
+        result.published += r.published
+        result.unchanged += r.unchanged
+        result.blocked.push(...r.blocked)
+      }
+      return result
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.catalog }),
+  })
 }
 
 export const useImportPriceList = () => {

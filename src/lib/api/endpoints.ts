@@ -265,10 +265,10 @@ export const deleteCatalogItems = (ids: string[]) => post("/publisher/catalog/de
 /** Each title is checked on its own: one that fails a check stays as it was, and the result says why. */
 export const publishCatalogItems = (ids: string[]) => post("/publisher/catalog/publish/", catalogPublishResultSchema, { ids })
 
-async function upload<T extends z.ZodType>(url: string, schema: T, fields: Record<string, string | Blob>) {
+async function upload<T extends z.ZodType>(url: string, schema: T, fields: Record<string, string | Blob>, timeout?: number) {
   const form = new FormData()
   for (const [key, value] of Object.entries(fields)) form.append(key, value)
-  const { data } = await api.post(url, form)
+  const { data } = await api.post(url, form, timeout ? { timeout } : undefined)
   return schema.parse(data) as z.infer<T>
 }
 
@@ -296,7 +296,8 @@ export async function downloadCatalogFile(fileId: string, name: string) {
 }
 /** A CSV price list. dryRun checks every row and saves nothing; otherwise the good rows are added as drafts. */
 export const importPriceList = (file: File, dryRun: boolean) =>
-  upload("/publisher/catalog/import/", catalogImportResultSchema, { file, dryRun: String(dryRun) })
+  // Longer than usual: giving up early would report a failure for titles that were in fact added.
+  upload("/publisher/catalog/import/", catalogImportResultSchema, { file, dryRun: String(dryRun) }, 120_000)
 
 export const getPublisherOverview = () => get("/publisher/overview/", publisherOverviewSchema)
 export const listPublisherBatches = () => get("/publisher/batches/", z.array(schoolBatchSchema))
